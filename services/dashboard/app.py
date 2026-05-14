@@ -1,22 +1,63 @@
 import os
 import streamlit as st
 
-st.set_page_config(page_title="WeatherML", page_icon="⛅", layout="wide")
+from theme import ACCENT, ACCENT_2, ACCENT_3, apply_theme
 
-st.title("⛅ WeatherML — прогноз погоды")
+st.set_page_config(page_title="WeatherML", page_icon="⛅", layout="wide", initial_sidebar_state="expanded")
+apply_theme()
+
 st.markdown(
-    """
-    Учебный проект: сбор погодных данных (Open-Meteo, OpenWeatherMap, Gismeteo),
-    обучение ML-моделей и сравнение нашего прогноза с официальным.
-
-    **Страницы** (выберите слева):
-    - 📊 **Overview** — текущая ситуация и KPI по выбранному городу
-    - 🔮 **Predictions** — прогноз нашей модели, сравнение с Gismeteo, метрики
-    - 📈 **Analytics** — сравнение городов, тренды и сезонность
-    - 🗃️ **Data** — таблица сырых наблюдений с фильтрами
-    - 🛠️ **Monitoring** — статус источников данных
-    """
+    f"""
+    <div style="text-align: center; padding: 60px 0 40px 0;">
+        <div style="display: inline-block; padding: 6px 16px; background: rgba(99, 102, 241, 0.15);
+                    border: 1px solid {ACCENT}; border-radius: 50px; font-size: 13px;
+                    color: {ACCENT}; font-weight: 500; margin-bottom: 24px;">
+            🌤️ Семестровый проект · WeatherML
+        </div>
+        <h1 style="font-size: clamp(2.5rem, 6vw, 4.5rem); margin: 0 0 16px 0;">
+            Прогноз погоды на ML
+        </h1>
+        <p style="color: #94a3b8; font-size: 1.15rem; max-width: 640px; margin: 0 auto;">
+            Сбор данных из нескольких источников, обучение моделей, сравнение
+            нашего прогноза с официальным — всё в одном дашборде.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
+cards = [
+    ("📊", "Overview", "KPI и графики выбранного города за неделю"),
+    ("🔮", "Predictions", "ML-прогноз, what-if форма, сравнение с Gismeteo"),
+    ("📈", "Analytics", "Сравнение городов, сезонность, аномалии"),
+    ("🗃️", "Data", "Сырые наблюдения с фильтрами и поиском"),
+    ("🛠️", "Monitoring", "Статус источников и логи ingestor"),
+]
+
+cols = st.columns(len(cards))
+for col, (icon, title, desc) in zip(cols, cards):
+    col.markdown(
+        f"""
+        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+                    border: 1px solid #2d2d4a; border-radius: 16px; padding: 20px;
+                    height: 100%; backdrop-filter: blur(12px);">
+            <div style="font-size: 28px; margin-bottom: 8px;">{icon}</div>
+            <div style="color: #f1f5f9; font-weight: 600; font-size: 1rem; margin-bottom: 4px;">{title}</div>
+            <div style="color: #94a3b8; font-size: 0.85rem; line-height: 1.4;">{desc}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
+
 api = os.environ.get("API_URL", "http://api:8000")
-st.caption(f"API: `{api}`")
+st.markdown(
+    f"""
+    <div style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 20px 0;">
+        FastAPI · <code>{api}</code> · Swagger <a href="{api}/docs" target="_blank"
+            style="color: {ACCENT}; text-decoration: none;">/docs</a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)

@@ -2,7 +2,10 @@ from datetime import datetime, timezone
 import pandas as pd
 import streamlit as st
 
-from _common import get_ingest_runs
+from common import get_ingest_runs
+from theme import apply_theme
+
+apply_theme()
 
 st.title("🛠️ Monitoring")
 

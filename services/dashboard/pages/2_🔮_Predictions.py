@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from _common import (
+from common import (
     city_selector,
     get_external_forecasts,
     get_feature_importance,
@@ -11,6 +11,9 @@ from _common import (
     post_predict,
     post_predict_manual,
 )
+from theme import apply_theme
+
+apply_theme()
 
 st.title("🔮 Predictions")
 

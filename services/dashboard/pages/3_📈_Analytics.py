@@ -2,7 +2,10 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from _common import get_cities, get_observations
+from common import get_cities, get_observations
+from theme import apply_theme
+
+apply_theme()
 
 st.title("📈 Analytics")
 
