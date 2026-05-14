@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir \
         -r requirements.txt
 
 COPY services/dashboard/app.py ./app.py
+COPY services/dashboard/home.py ./home.py
 COPY services/dashboard/theme.py ./theme.py
 COPY services/dashboard/common.py ./common.py
 COPY services/dashboard/pages ./pages

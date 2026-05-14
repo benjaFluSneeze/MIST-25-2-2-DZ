@@ -5,6 +5,50 @@ import streamlit as st
 API_URL = os.environ.get("API_URL", "http://api:8000")
 
 
+CITY_NAMES_RU = {
+    "Moscow": "Москва",
+    "Saint Petersburg": "Санкт-Петербург",
+    "Yekaterinburg": "Екатеринбург",
+    "Novosibirsk": "Новосибирск",
+    "Kazan": "Казань",
+    "Sochi": "Сочи",
+    "Vladivostok": "Владивосток",
+}
+
+
+def city_ru(name: str) -> str:
+    return CITY_NAMES_RU.get(name, name)
+
+
+SOURCE_NAMES_RU = {
+    "open_meteo": "Open-Meteo (свежие)",
+    "open_meteo_archive": "Open-Meteo (история)",
+    "openweather": "OpenWeatherMap",
+    "gismeteo": "Gismeteo",
+}
+
+
+def source_ru(name: str) -> str:
+    return SOURCE_NAMES_RU.get(name, name)
+
+
+CONDITION_NAMES_RU = {
+    "Clear": "Ясно",
+    "Clouds": "Облачно",
+    "Rain": "Дождь",
+    "Snow": "Снег",
+    "Fog": "Туман",
+    "Thunderstorm": "Гроза",
+    "Unknown": "—",
+}
+
+
+def condition_ru(name: str | None) -> str:
+    if not name:
+        return "—"
+    return CONDITION_NAMES_RU.get(name, name)
+
+
 @st.cache_data(ttl=60)
 def get_cities() -> list[dict]:
     r = requests.get(f"{API_URL}/data/cities", timeout=10)
@@ -80,8 +124,12 @@ def city_selector(label: str = "Город") -> dict | None:
         st.error(f"Не удалось получить список городов: {e}")
         return None
     if not cities:
-        st.warning("В базе пока нет городов. Подождите первого запуска ingestor.")
+        st.warning("В базе пока нет городов. Подождите первого сбора данных.")
         return None
-    names = [c["name"] for c in cities]
-    idx = st.sidebar.selectbox(label, range(len(names)), format_func=lambda i: names[i])
-    return cities[idx]
+    cities_sorted = sorted(cities, key=lambda c: city_ru(c["name"]))
+    idx = st.sidebar.selectbox(
+        label,
+        range(len(cities_sorted)),
+        format_func=lambda i: city_ru(cities_sorted[i]["name"]),
+    )
+    return cities_sorted[idx]
