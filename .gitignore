@@ -19,3 +19,4 @@ data/*.parquet
 ml/artifacts/*.joblib
 !ml/artifacts/.gitkeep
 postgres_data/
+docker-compose.override.yml

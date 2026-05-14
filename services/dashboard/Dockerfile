@@ -6,7 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 COPY services/dashboard/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir \
+        --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+        -r requirements.txt
 
 COPY services/dashboard/app.py ./app.py
 COPY services/dashboard/pages ./pages

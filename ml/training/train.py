@@ -118,7 +118,8 @@ def train_rain(df: pd.DataFrame, features: list[str]) -> tuple[CatBoostClassifie
     acc_scores, f1_scores = [], []
     for tr, va in tscv.split(X):
         model = CatBoostClassifier(
-            iterations=300, learning_rate=0.05, depth=6, verbose=False, random_seed=42,
+            iterations=300, learning_rate=0.05, depth=6, verbose=False,
+            random_seed=42, auto_class_weights="Balanced",
         )
         model.fit(X.iloc[tr], y.iloc[tr])
         pred = model.predict(X.iloc[va])
@@ -126,7 +127,8 @@ def train_rain(df: pd.DataFrame, features: list[str]) -> tuple[CatBoostClassifie
         f1_scores.append(f1_score(y.iloc[va], pred, zero_division=0))
 
     final = CatBoostClassifier(
-        iterations=500, learning_rate=0.05, depth=6, verbose=False, random_seed=42,
+        iterations=500, learning_rate=0.05, depth=6, verbose=False,
+        random_seed=42, auto_class_weights="Balanced",
     )
     final.fit(X, y)
     metrics = {
@@ -151,7 +153,7 @@ def train_condition(df: pd.DataFrame, features: list[str]) -> tuple[CatBoostClas
     for tr, va in tscv.split(X):
         model = CatBoostClassifier(
             iterations=300, learning_rate=0.05, depth=6, verbose=False,
-            random_seed=42, classes_count=len(CONDITION_CLASSES),
+            random_seed=42, loss_function="MultiClass",
         )
         model.fit(X.iloc[tr], y.iloc[tr])
         pred = model.predict(X.iloc[va]).flatten()
@@ -159,7 +161,8 @@ def train_condition(df: pd.DataFrame, features: list[str]) -> tuple[CatBoostClas
         f1_scores.append(f1_score(y.iloc[va], pred, average="macro", zero_division=0))
 
     final = CatBoostClassifier(
-        iterations=500, learning_rate=0.05, depth=6, verbose=False, random_seed=42,
+        iterations=500, learning_rate=0.05, depth=6, verbose=False,
+        random_seed=42, loss_function="MultiClass",
     )
     final.fit(X, y)
     metrics = {

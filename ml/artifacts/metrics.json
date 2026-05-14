@@ -1,0 +1,60 @@
+{
+  "temperature": {
+    "cv_mae_mean": 1.8359626977465582,
+    "cv_mae_std": 0.1488705930734129,
+    "cv_rmse_mean": 2.510759380977203,
+    "naive_mae": 2.7372737620944796,
+    "n_samples": 52710,
+    "horizon_hours": 6
+  },
+  "rain": {
+    "cv_accuracy_mean": 0.7868246445497631,
+    "cv_f1_mean": 0.37831333330978667,
+    "naive_accuracy": 0.8852176220806794,
+    "positive_rate": 0.1147823779193206,
+    "n_samples": 52752,
+    "horizon_hours": 6
+  },
+  "condition": {
+    "cv_accuracy_mean": 0.6216088028837032,
+    "cv_macro_f1_mean": 0.47800086421156035,
+    "naive_accuracy": 0.6291785239992411,
+    "classes": [
+      "Clear",
+      "Clouds",
+      "Rain",
+      "Snow",
+      "Thunderstorm"
+    ],
+    "n_samples": 52710,
+    "horizon_hours": 6
+  },
+  "feature_columns": [
+    "humidity",
+    "pressure_hpa",
+    "wind_speed",
+    "wind_direction",
+    "cloud_cover",
+    "precipitation_mm",
+    "hour",
+    "dayofyear",
+    "month",
+    "dayofweek",
+    "hour_sin",
+    "hour_cos",
+    "doy_sin",
+    "doy_cos",
+    "t_lag_1",
+    "t_lag_3",
+    "t_lag_6",
+    "t_lag_12",
+    "t_lag_24",
+    "t_roll_mean_3",
+    "t_roll_std_3",
+    "t_roll_mean_12",
+    "t_roll_std_12",
+    "t_roll_mean_24",
+    "t_roll_std_24",
+    "city_id"
+  ]
+}

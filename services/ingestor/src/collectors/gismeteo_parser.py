@@ -50,36 +50,48 @@ def fetch_tomorrow(slug: str) -> dict | None:
     }
 
 
-_TEMP_RE = re.compile(r"-?\d+")
+# Strict: a sign, digits, optional decimal, followed by a degree sign in the same string.
+_TEMP_WITH_DEGREE_RE = re.compile(r"(-?\d{1,3})\s*°")
+_PLAIN_NUMBER_RE = re.compile(r"-?\d{1,3}(?:\.\d+)?")
 
 
 def _extract_temps(soup: BeautifulSoup) -> list[float]:
     out = []
-    for el in soup.select(".value temperature-value, .temperature-value, .value .unit_temperature_c"):
-        m = _TEMP_RE.search(el.get_text(strip=True))
-        if m:
-            try:
-                out.append(float(m.group(0)))
-            except ValueError:
-                pass
-    if not out:
-        for el in soup.find_all(string=_TEMP_RE):
-            m = _TEMP_RE.search(str(el))
-            if m and "°" in str(el):
-                try:
-                    out.append(float(m.group(0)))
-                except ValueError:
-                    pass
+    # Only look at elements that are actually temperature-tagged.
+    for el in soup.select(
+        "[class*='temperature'] .value, "
+        ".unit_temperature_c, "
+        ".values .value"
+    ):
+        text = el.get_text(" ", strip=True)
+        m = _TEMP_WITH_DEGREE_RE.search(text)
+        if not m:
+            m = _PLAIN_NUMBER_RE.fullmatch(text)
+        if not m:
+            continue
+        try:
+            val = float(m.group(1) if m.lastindex else m.group(0))
+        except (ValueError, IndexError):
+            continue
+        # Sanity check — real surface temperature is between -80 and 60 °C.
+        if -80 <= val <= 60:
+            out.append(val)
     return out[:24]
 
 
 def _extract_precipitation(soup: BeautifulSoup) -> float:
     total = 0.0
-    for el in soup.select(".unit_precip_mm, .item .precipitation .value"):
-        try:
-            total += float(_TEMP_RE.search(el.get_text(strip=True)).group(0))
-        except (AttributeError, ValueError):
+    for el in soup.select(".unit_precip_mm, [class*='precipitation'] .value"):
+        text = el.get_text(" ", strip=True)
+        m = _PLAIN_NUMBER_RE.search(text)
+        if not m:
             continue
+        try:
+            v = float(m.group(0))
+        except ValueError:
+            continue
+        if 0 <= v <= 200:
+            total += v
     return total
 
 
