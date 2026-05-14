@@ -52,6 +52,12 @@ def post_predict(city_id: int, horizon_hours: int = 6) -> dict:
     return r.json()
 
 
+def post_predict_manual(payload: dict) -> dict:
+    r = requests.post(f"{API_URL}/predict/manual", json=payload, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+
 @st.cache_data(ttl=300)
 def get_metrics() -> dict:
     r = requests.get(f"{API_URL}/predict/metrics", timeout=10)

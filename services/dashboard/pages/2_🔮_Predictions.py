@@ -9,6 +9,7 @@ from _common import (
     get_metrics,
     get_observations,
     post_predict,
+    post_predict_manual,
 )
 
 st.title("🔮 Predictions")
@@ -36,6 +37,60 @@ c3.metric("Тип погоды", pred["predicted_condition"] or "—")
 
 st.caption(f"Прогноз построен на основе наблюдения от {pred['based_on_ts']} UTC")
 
+st.divider()
+st.subheader("🧪 What-if: задайте свои условия")
+st.caption(
+    "Подставьте текущие условия — модель использует их вместо последнего "
+    "наблюдения и пересчитает прогноз. История лагов берётся из БД города."
+)
+
+obs_recent = get_observations(city["id"], hours=2, source="open_meteo")
+defaults = obs_recent[-1] if obs_recent else {}
+
+with st.form("manual_predict"):
+    f1, f2, f3 = st.columns(3)
+    in_temp = f1.number_input("Температура, °C", -60.0, 55.0,
+                               float(defaults.get("temperature_c") or 15.0), 0.5)
+    in_humidity = f2.number_input("Влажность, %", 0.0, 100.0,
+                                   float(defaults.get("humidity") or 60.0), 1.0)
+    in_pressure = f3.number_input("Давление, hPa", 900.0, 1080.0,
+                                   float(defaults.get("pressure_hpa") or 1013.0), 1.0)
+
+    f4, f5, f6 = st.columns(3)
+    in_wind = f4.number_input("Ветер, м/с", 0.0, 60.0,
+                               float(defaults.get("wind_speed") or 3.0), 0.5)
+    in_cloud = f5.number_input("Облачность, %", 0.0, 100.0,
+                                float(defaults.get("cloud_cover") or 50.0), 5.0)
+    in_precip = f6.number_input("Осадки, мм", 0.0, 100.0,
+                                 float(defaults.get("precipitation_mm") or 0.0), 0.1)
+
+    submitted = st.form_submit_button("Посчитать прогноз")
+
+if submitted:
+    payload = {
+        "city_id": city["id"],
+        "horizon_hours": horizon,
+        "temperature_c": in_temp,
+        "humidity": in_humidity,
+        "pressure_hpa": in_pressure,
+        "wind_speed": in_wind,
+        "cloud_cover": in_cloud,
+        "precipitation_mm": in_precip,
+    }
+    try:
+        manual = post_predict_manual(payload)
+    except Exception as e:  # noqa: BLE001
+        st.error(f"Не удалось посчитать прогноз: {e}")
+    else:
+        m1, m2, m3 = st.columns(3)
+        mt = manual["predicted_temperature_c"]
+        mp = manual["predicted_rain_probability"]
+        m1.metric("Темп. прогноз, °C", f"{mt:.1f}" if mt is not None else "—",
+                  delta=f"{(mt - temp):+.1f} vs автомат" if mt is not None and temp is not None else None)
+        m2.metric("Вероятность дождя", f"{mp*100:.0f}%" if mp is not None else "—")
+        m3.metric("Тип погоды", manual["predicted_condition"] or "—")
+
+st.divider()
 st.subheader("Наш прогноз vs Gismeteo")
 ext = get_external_forecasts(city["id"], limit=14)
 if ext:
@@ -72,6 +127,10 @@ except Exception:  # noqa: BLE001
     metrics = {}
 
 if metrics:
+    version = metrics.get("model_version", "—")
+    trained_at = metrics.get("trained_at", "—")
+    st.caption(f"Версия модели: `{version}` · обучена: {trained_at}")
+
     c1, c2, c3 = st.columns(3)
     t = metrics.get("temperature", {})
     c1.metric(
@@ -97,9 +156,21 @@ else:
 st.subheader("Feature importance (температурная модель)")
 fi = get_feature_importance("temperature")
 if fi:
+    descriptions = (metrics or {}).get("feature_descriptions", {})
     df_fi = pd.DataFrame(fi).head(15)
-    fig = px.bar(df_fi, x="importance", y="feature", orientation="h")
+    df_fi["описание"] = df_fi["feature"].map(lambda f: descriptions.get(f, f))
+    fig = px.bar(
+        df_fi, x="importance", y="feature", orientation="h",
+        hover_data=["описание"],
+    )
     fig.update_layout(height=450, margin=dict(t=30, b=20))
     st.plotly_chart(fig, use_container_width=True)
+    with st.expander("Расшифровка признаков"):
+        st.dataframe(
+            df_fi[["feature", "описание", "importance"]].rename(
+                columns={"feature": "Признак", "importance": "Важность"}
+            ),
+            use_container_width=True, hide_index=True,
+        )
 else:
     st.info("Feature importance появится после обучения моделей.")

@@ -61,6 +61,18 @@ class PredictRequest(BaseModel):
     horizon_hours: int = Field(6, ge=1, le=24, description="Forecast horizon in hours")
 
 
+class ManualPredictRequest(BaseModel):
+    city_id: int = Field(..., description="City id (used for lag history)")
+    horizon_hours: int = Field(6, ge=1, le=24)
+    temperature_c: float | None = Field(None, ge=-80, le=60, description="Current temperature, °C")
+    humidity: float | None = Field(None, ge=0, le=100, description="Relative humidity, %")
+    pressure_hpa: float | None = Field(None, ge=800, le=1100, description="Pressure, hPa")
+    wind_speed: float | None = Field(None, ge=0, le=80, description="Wind speed, m/s")
+    wind_direction: float | None = Field(None, ge=0, le=360, description="Wind direction, degrees")
+    cloud_cover: float | None = Field(None, ge=0, le=100, description="Cloud cover, %")
+    precipitation_mm: float | None = Field(None, ge=0, le=200, description="Precipitation, mm")
+
+
 class PredictResponse(BaseModel):
     city_id: int
     city_name: str

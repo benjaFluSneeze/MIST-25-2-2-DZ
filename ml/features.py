@@ -68,6 +68,36 @@ def feature_columns() -> list[str]:
     return base + time_feats + lag_feats + roll_feats + ["city_id"]
 
 
+FEATURE_DESCRIPTIONS = {
+    "humidity": "Относительная влажность, %",
+    "pressure_hpa": "Атмосферное давление, hPa",
+    "wind_speed": "Скорость ветра, м/с",
+    "wind_direction": "Направление ветра, градусы",
+    "cloud_cover": "Облачность, %",
+    "precipitation_mm": "Осадки за час, мм",
+    "hour": "Час суток (UTC)",
+    "dayofyear": "Номер дня в году",
+    "month": "Месяц",
+    "dayofweek": "День недели",
+    "hour_sin": "Час суток (синус, циклическое кодирование)",
+    "hour_cos": "Час суток (косинус, циклическое кодирование)",
+    "doy_sin": "День года (синус, сезонность)",
+    "doy_cos": "День года (косинус, сезонность)",
+    "t_lag_1": "Температура 1 час назад",
+    "t_lag_3": "Температура 3 часа назад",
+    "t_lag_6": "Температура 6 часов назад",
+    "t_lag_12": "Температура 12 часов назад",
+    "t_lag_24": "Температура сутки назад",
+    "t_roll_mean_3": "Средняя температура за 3 часа",
+    "t_roll_mean_12": "Средняя температура за 12 часов",
+    "t_roll_mean_24": "Средняя температура за сутки",
+    "t_roll_std_3": "Стандартное отклонение T за 3 часа",
+    "t_roll_std_12": "Стандартное отклонение T за 12 часов",
+    "t_roll_std_24": "Стандартное отклонение T за сутки",
+    "city_id": "Идентификатор города",
+}
+
+
 def build_training_frame(df: pd.DataFrame, horizon_hours: int = 6) -> pd.DataFrame:
     """Add features and create target columns shifted into the future."""
     df = add_time_features(df)

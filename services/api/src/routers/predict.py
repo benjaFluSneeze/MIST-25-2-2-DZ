@@ -5,9 +5,24 @@ from sqlalchemy.orm import Session
 from .. import ml_service
 from ..db import get_session
 from ..models import City
-from ..schemas import PredictRequest, PredictResponse
+from ..schemas import ManualPredictRequest, PredictRequest, PredictResponse
 
 router = APIRouter(prefix="/predict", tags=["predict"])
+
+
+def _build_response(city: City, horizon_hours: int, result: dict) -> PredictResponse:
+    target_ts = result["based_on_ts"] + timedelta(hours=horizon_hours)
+    return PredictResponse(
+        city_id=city.id,
+        city_name=city.name,
+        based_on_ts=result["based_on_ts"],
+        horizon_hours=horizon_hours,
+        target_ts=target_ts,
+        predicted_temperature_c=result["predicted_temperature_c"],
+        predicted_rain_probability=result["predicted_rain_probability"],
+        predicted_rain=result["predicted_rain"],
+        predicted_condition=result["predicted_condition"],
+    )
 
 
 @router.post("", response_model=PredictResponse)
@@ -21,19 +36,24 @@ def predict(req: PredictRequest, session: Session = Depends(get_session)):
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
+    return _build_response(city, req.horizon_hours, result)
 
-    target_ts = result["based_on_ts"] + timedelta(hours=req.horizon_hours)
-    return PredictResponse(
-        city_id=city.id,
-        city_name=city.name,
-        based_on_ts=result["based_on_ts"],
-        horizon_hours=req.horizon_hours,
-        target_ts=target_ts,
-        predicted_temperature_c=result["predicted_temperature_c"],
-        predicted_rain_probability=result["predicted_rain_probability"],
-        predicted_rain=result["predicted_rain"],
-        predicted_condition=result["predicted_condition"],
-    )
+
+@router.post("/manual", response_model=PredictResponse)
+def predict_manual(req: ManualPredictRequest, session: Session = Depends(get_session)):
+    """What-if prediction: user supplies current conditions, lag history
+    is taken from the city's real DB observations."""
+    city = session.get(City, req.city_id)
+    if city is None:
+        raise HTTPException(status_code=404, detail="city not found")
+    overrides = req.model_dump(exclude={"city_id", "horizon_hours"}, exclude_none=True)
+    try:
+        result = ml_service.predict_with_overrides(session, req.city_id, overrides)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    return _build_response(city, req.horizon_hours, result)
 
 
 @router.get("/metrics")

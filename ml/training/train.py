@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -29,6 +30,7 @@ sys.path.insert(0, str(ROOT))
 
 from ml.features import (  # noqa: E402
     CONDITION_CLASSES,
+    FEATURE_DESCRIPTIONS,
     build_training_frame,
     feature_columns,
 )
@@ -206,14 +208,19 @@ def main():
     joblib.dump({"model": rain_model, "features": features}, ARTIFACTS / "rain_model.joblib")
     joblib.dump({"model": cond_model, "features": features}, ARTIFACTS / "condition_model.joblib")
 
+    trained_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    model_version = trained_at.replace(":", "").replace("-", "").replace("+0000", "Z")
     metrics_all = {
+        "model_version": model_version,
+        "trained_at": trained_at,
         "temperature": temp_metrics,
         "rain": rain_metrics,
         "condition": cond_metrics,
         "feature_columns": features,
+        "feature_descriptions": {f: FEATURE_DESCRIPTIONS.get(f, f) for f in features},
     }
-    (ARTIFACTS / "metrics.json").write_text(json.dumps(metrics_all, indent=2))
-    log.info("artifacts saved to %s", ARTIFACTS)
+    (ARTIFACTS / "metrics.json").write_text(json.dumps(metrics_all, indent=2, ensure_ascii=False))
+    log.info("artifacts saved to %s (model_version=%s)", ARTIFACTS, model_version)
 
 
 if __name__ == "__main__":
