@@ -1,0 +1,16 @@
+CITIES = [
+    {"name": "Moscow", "lat": 55.7558, "lon": 37.6173, "tz": "Europe/Moscow",
+     "gismeteo_slug": "moscow-4368"},
+    {"name": "Saint Petersburg", "lat": 59.9311, "lon": 30.3609, "tz": "Europe/Moscow",
+     "gismeteo_slug": "saint-petersburg-4079"},
+    {"name": "Yekaterinburg", "lat": 56.8389, "lon": 60.6057, "tz": "Asia/Yekaterinburg",
+     "gismeteo_slug": "yekaterinburg-4517"},
+    {"name": "Novosibirsk", "lat": 55.0084, "lon": 82.9357, "tz": "Asia/Novosibirsk",
+     "gismeteo_slug": "novosibirsk-4690"},
+    {"name": "Kazan", "lat": 55.7887, "lon": 49.1221, "tz": "Europe/Moscow",
+     "gismeteo_slug": "kazan-4364"},
+    {"name": "Sochi", "lat": 43.6028, "lon": 39.7342, "tz": "Europe/Moscow",
+     "gismeteo_slug": "sochi-5233"},
+    {"name": "Vladivostok", "lat": 43.1198, "lon": 131.8869, "tz": "Asia/Vladivostok",
+     "gismeteo_slug": "vladivostok-4881"},
+]
