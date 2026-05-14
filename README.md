@@ -5,6 +5,17 @@
 Веб-сервис собирает погодные данные из нескольких источников, обучает ML-модели и
 показывает их прогнозы в интерактивном дашборде. Всё разворачивается одной командой.
 
+## Скриншоты
+
+| | |
+|:-:|:-:|
+| ![Home](docs/screenshots/01_home.png) | ![Overview](docs/screenshots/02_overview.png) |
+| Главная страница | Overview — KPI и графики |
+| ![Predictions](docs/screenshots/03_predictions.png) | ![Analytics](docs/screenshots/04_analytics.png) |
+| Predictions — what-if форма | Analytics — сравнение городов |
+| ![Data](docs/screenshots/05_data.png) | ![Monitoring](docs/screenshots/06_monitoring.png) |
+| Data — таблица с фильтрами | Monitoring — статус источников |
+
 ## Стек
 
 - **Data**: `requests`, `BeautifulSoup4`, `APScheduler`, Open-Meteo / OpenWeatherMap / Gismeteo
