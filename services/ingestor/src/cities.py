@@ -12,5 +12,5 @@ CITIES = [
     {"name": "Sochi", "lat": 43.6028, "lon": 39.7342, "tz": "Europe/Moscow",
      "gismeteo_slug": "sochi-5233"},
     {"name": "Vladivostok", "lat": 43.1198, "lon": 131.8869, "tz": "Asia/Vladivostok",
-     "gismeteo_slug": "vladivostok-4881"},
+     "gismeteo_slug": "vladivostok-4877"},
 ]
