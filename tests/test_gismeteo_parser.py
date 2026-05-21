@@ -1,5 +1,6 @@
 """Tests for the Gismeteo parser using realistic markup fixtures."""
 import sys
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,3 +98,25 @@ def test_parse_page_ignores_city_slug_numbers():
 
 def test_parse_page_returns_none_on_empty_markup():
     assert parse_page("<html><body>nothing here</body></html>") is None
+
+
+def test_drop_past_filters_already_happened_slots():
+    """For today's grid we want only slots in the future."""
+    # Yesterday — all 8 slots are in the past
+    yesterday = date.today() - timedelta(days=1)
+    result = parse_page(SAMPLE_HTML, base_date=yesterday, drop_past=True)
+    assert result == []
+
+    # Tomorrow — all 8 slots are in the future, drop_past has no effect
+    tomorrow = date.today() + timedelta(days=1)
+    result = parse_page(SAMPLE_HTML, base_date=tomorrow, drop_past=True)
+    assert result is not None
+    assert len(result) == 8
+
+
+def test_base_date_anchors_target_ts_to_that_day():
+    target = date(2030, 1, 15)
+    result = parse_page(SAMPLE_HTML, base_date=target)
+    assert result is not None
+    assert result[0]["target_ts"] == datetime(2030, 1, 15, 0, 0, tzinfo=timezone.utc)
+    assert result[-1]["target_ts"] == datetime(2030, 1, 15, 21, 0, tzinfo=timezone.utc)
