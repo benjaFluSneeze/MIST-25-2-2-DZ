@@ -14,17 +14,27 @@ from common import (
     post_predict_manual,
 )
 
+FORECAST_HORIZON_HOURS = 6  # фиксированный горизонт модели (см. ml/training/train.py)
+
 city = city_selector()
 if city is None:
     st.stop()
 
 st.title(f"🔮 Прогноз · {city_ru(city['name'])}")
 
-horizon = st.sidebar.slider("Горизонт прогноза, часов", 1, 24, 6)
+st.sidebar.markdown(
+    f"""
+    <div style="padding: 12px 14px; background: rgba(99, 102, 241, 0.08);
+                border: 1px solid #2d2d4a; border-radius: 10px; font-size: 0.9rem;">
+        Модель обучена на горизонт<br><b>+{FORECAST_HORIZON_HOURS} часов</b>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.spinner("Считаем прогноз..."):
     try:
-        pred = post_predict(city["id"], horizon)
+        pred = post_predict(city["id"], FORECAST_HORIZON_HOURS)
     except Exception as e:  # noqa: BLE001
         st.error(f"Не удалось получить прогноз: {e}")
         st.stop()
@@ -87,7 +97,7 @@ with st.form("manual_predict"):
 if submitted:
     payload = {
         "city_id": city["id"],
-        "horizon_hours": horizon,
+        "horizon_hours": FORECAST_HORIZON_HOURS,
         "temperature_c": in_temp,
         "humidity": in_humidity,
         "pressure_hpa": in_pressure,
@@ -139,7 +149,7 @@ if obs:
         x=[pd.to_datetime(pred["target_ts"])],
         y=[temp] if temp is not None else [None],
         mode="markers", marker=dict(size=14, color="#ec4899"),
-        name=f"Наш прогноз (+{horizon} ч)",
+        name=f"Наш прогноз (+{FORECAST_HORIZON_HOURS} ч)",
     )
     fig.update_layout(height=400, margin=dict(t=30, b=20))
     st.plotly_chart(fig, use_container_width=True)
