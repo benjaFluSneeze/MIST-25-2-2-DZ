@@ -1,0 +1,39 @@
+# Production overrides for VPS deployment.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Differences vs the dev compose:
+#   * Adds Caddy as the public-facing reverse proxy with automatic HTTPS.
+#   * Hides the internal services (api, dashboard, db) from the public
+#     internet — they are only reachable through Caddy on 80/443.
+services:
+  db:
+    ports: []
+
+  api:
+    ports: []
+
+  dashboard:
+    ports: []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - dashboard
+    environment:
+      DOMAIN_BASE: ${DOMAIN_BASE}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-admin@localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

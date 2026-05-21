@@ -1,0 +1,27 @@
+{
+    email {$LETSENCRYPT_EMAIL:admin@localhost}
+}
+
+weather.{$DOMAIN_BASE:localhost} {
+    encode gzip
+
+    reverse_proxy dashboard:8501 {
+        # Streamlit needs upgrade headers for WebSocket — Caddy handles
+        # WebSocket upgrades automatically, but we forward Host / X-Forwarded-*
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+api.{$DOMAIN_BASE:localhost} {
+    encode gzip
+
+    reverse_proxy api:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}

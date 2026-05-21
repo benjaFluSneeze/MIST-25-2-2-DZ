@@ -141,6 +141,56 @@ pytest tests/
 └── tests/
 ```
 
+## Деплой на VPS (с HTTPS)
+
+Дополнительный compose-файл `docker-compose.prod.yml` поднимает [Caddy](https://caddyserver.com)
+как reverse-proxy с автоматическим Let's Encrypt и прячет внутренние сервисы
+(api, dashboard, db) от публичного интернета — наружу торчат только 80/443.
+
+**Что нужно от VPS:** 4 GB RAM, 20 GB диск, открытые порты 80 и 443.
+Доменное имя не обязательно — `nip.io` даёт бесплатное wildcard-резолвление
+по IP-адресу.
+
+```bash
+# 1. На VPS, в свободной директории:
+git clone <публичный-репозиторий-url> weatherml
+cd weatherml
+
+# 2. Готовим .env (замените значения):
+cp .env.example .env
+nano .env   # обязательно: DOMAIN_BASE, DB_PASSWORD, OPENWEATHER_API_KEY
+# Пример:
+#   DOMAIN_BASE=203.0.113.42.nip.io
+#   DB_PASSWORD=<длинный-случайный-пароль>
+#   LETSENCRYPT_EMAIL=you@example.com
+
+# 3. Поднимаем стек с прод-оверлеем:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# 4. Ждём первый бэкфилл (~5-10 минут):
+docker compose logs -f ingestor   # Ctrl+C когда увидите "Scheduler started"
+
+# 5. Обучаем модели (~10 минут на VPS):
+docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+    run --rm -v "$PWD/ml:/app/ml" api python -m ml.training.train
+
+# 6. Перегружаем модели в API (curl изнутри сети, наружу /admin не нужен):
+docker compose exec api python -c "import urllib.request; \
+    urllib.request.urlopen('http://localhost:8000/admin/reload-models', data=b'')"
+```
+
+Готово. Открывай в браузере:
+
+* `https://weather.<DOMAIN_BASE>/` — это и есть ссылка для препода
+* `https://api.<DOMAIN_BASE>/docs` — Swagger
+
+Первый раз Caddy получит SSL-сертификат от Let's Encrypt за ~30 секунд.
+
+### Если хочешь свой нормальный домен
+
+Создаёшь A-запись `weather.example.com → <IP-VPS>` и `api.weather.example.com → <IP-VPS>`,
+в `.env` ставишь `DOMAIN_BASE=weather.example.com`. Дальше идентично.
+
 ## Известные ограничения
 
 - Парсер Gismeteo может ломаться при изменении вёрстки сайта — это допустимо для
