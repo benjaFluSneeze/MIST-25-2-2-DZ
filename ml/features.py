@@ -31,6 +31,11 @@ def add_time_features(df: pd.DataFrame, ts_col: str = "ts") -> pd.DataFrame:
     df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24)
     df["doy_sin"] = np.sin(2 * np.pi * df["dayofyear"] / 365.25)
     df["doy_cos"] = np.cos(2 * np.pi * df["dayofyear"] / 365.25)
+    # Wind direction is cyclic (0° ≈ 360°), so encode as sin/cos like hours/days.
+    if "wind_direction" in df.columns:
+        rad = 2 * np.pi * df["wind_direction"].fillna(0) / 360
+        df["wind_dir_sin"] = np.sin(rad)
+        df["wind_dir_cos"] = np.cos(rad)
     return df
 
 
@@ -57,9 +62,11 @@ def add_lag_features(
 
 
 def feature_columns() -> list[str]:
-    base = [c for c in NUM_BASE_FEATURES if c != "temperature_c"]
+    # wind_direction is replaced by wind_dir_sin / wind_dir_cos (cyclical encoding)
+    base = [c for c in NUM_BASE_FEATURES if c not in ("temperature_c", "wind_direction")]
     time_feats = ["hour", "dayofyear", "month", "dayofweek",
-                  "hour_sin", "hour_cos", "doy_sin", "doy_cos"]
+                  "hour_sin", "hour_cos", "doy_sin", "doy_cos",
+                  "wind_dir_sin", "wind_dir_cos"]
     lag_feats = [f"t_lag_{L}" for L in (1, 3, 6, 12, 24)]
     roll_feats = []
     for W in (3, 12, 24):
@@ -72,7 +79,9 @@ FEATURE_DESCRIPTIONS = {
     "humidity": "Относительная влажность, %",
     "pressure_hpa": "Атмосферное давление, hPa",
     "wind_speed": "Скорость ветра, м/с",
-    "wind_direction": "Направление ветра, градусы",
+    "wind_direction": "Направление ветра, градусы (сырое значение)",
+    "wind_dir_sin": "Направление ветра (синус, циклическое кодирование)",
+    "wind_dir_cos": "Направление ветра (косинус, циклическое кодирование)",
     "cloud_cover": "Облачность, %",
     "precipitation_mm": "Осадки за час, мм",
     "hour": "Час суток (UTC)",
