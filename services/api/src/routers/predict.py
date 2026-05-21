@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from .. import ml_service
@@ -31,7 +31,7 @@ def predict(req: PredictRequest, session: Session = Depends(get_session)):
     if city is None:
         raise HTTPException(status_code=404, detail="city not found")
     try:
-        result = ml_service.predict_for_city(session, req.city_id)
+        result = ml_service.predict_for_city(session, req.city_id, horizon=req.horizon_hours)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
@@ -48,12 +48,20 @@ def predict_manual(req: ManualPredictRequest, session: Session = Depends(get_ses
         raise HTTPException(status_code=404, detail="city not found")
     overrides = req.model_dump(exclude={"city_id", "horizon_hours"}, exclude_none=True)
     try:
-        result = ml_service.predict_with_overrides(session, req.city_id, overrides)
+        result = ml_service.predict_with_overrides(
+            session, req.city_id, overrides, horizon=req.horizon_hours,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     return _build_response(city, req.horizon_hours, result)
+
+
+@router.get("/horizons")
+def available_horizons():
+    bundle = ml_service.get_bundle()
+    return {"horizons": bundle.horizons, "default": ml_service.DEFAULT_HORIZON}
 
 
 @router.get("/metrics")
@@ -63,14 +71,19 @@ def model_metrics():
 
 
 @router.get("/feature-importance/{model_name}")
-def feature_importance(model_name: str):
+def feature_importance(
+    model_name: str,
+    horizon: int = Query(ml_service.DEFAULT_HORIZON, ge=1, le=48),
+):
     bundle = ml_service.get_bundle()
-    mapping = {"temperature": bundle.temp, "rain": bundle.rain, "condition": bundle.condition}
-    b = mapping.get(model_name)
-    if b is None:
+    task = {"temperature": "temp", "rain": "rain", "condition": "condition"}.get(model_name)
+    if task is None:
+        raise HTTPException(status_code=404, detail="unknown model")
+    model = bundle.get_model(task, horizon)
+    if model is None:
         raise HTTPException(status_code=404, detail="model not loaded")
-    model = b["model"]
-    features = b["features"]
+    artifact = getattr(bundle, task)
+    features = artifact["features"]
     importances = model.get_feature_importance()
     pairs = sorted(
         zip(features, [float(x) for x in importances]),

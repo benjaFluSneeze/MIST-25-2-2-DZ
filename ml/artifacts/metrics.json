@@ -1,41 +1,272 @@
 {
-  "model_version": "20260514T091040Z",
-  "trained_at": "2026-05-14T09:10:40+00:00",
+  "model_version": "20260521T152211Z",
+  "trained_at": "2026-05-21T15:22:11+00:00",
+  "horizons": [
+    3,
+    6,
+    9,
+    12,
+    15,
+    18,
+    21,
+    24
+  ],
   "temperature": {
-    "cv_mae_mean": 1.7693699792452173,
-    "cv_mae_std": 0.1152720661203819,
-    "cv_rmse_mean": 2.4234130347763023,
-    "naive_mae": 2.695926504573121,
-    "n_samples": 61446,
-    "horizon_hours": 6
+    "horizons": {
+      "3": {
+        "cv_mae_mean": 1.3650052690053185,
+        "cv_mae_std": 0.1363745970038343,
+        "cv_rmse_mean": 1.9006427704135644,
+        "naive_mae": 1.5595660940398421,
+        "n_samples": 61995,
+        "horizon_hours": 3
+      },
+      "6": {
+        "cv_mae_mean": 1.8480368993171765,
+        "cv_mae_std": 0.20063327269443657,
+        "cv_rmse_mean": 2.493926153397288,
+        "naive_mae": 2.7066011553232,
+        "n_samples": 61974,
+        "horizon_hours": 6
+      },
+      "9": {
+        "cv_mae_mean": 2.1351608207428114,
+        "cv_mae_std": 0.11988368874882424,
+        "cv_rmse_mean": 2.9101984092137365,
+        "naive_mae": 3.492123061030136,
+        "n_samples": 61953,
+        "horizon_hours": 9
+      },
+      "12": {
+        "cv_mae_mean": 2.403669594153835,
+        "cv_mae_std": 0.15690805447883363,
+        "cv_rmse_mean": 3.317670388998759,
+        "naive_mae": 3.8594022476264285,
+        "n_samples": 61932,
+        "horizon_hours": 12
+      },
+      "15": {
+        "cv_mae_mean": 2.57046625702531,
+        "cv_mae_std": 0.22105064233728833,
+        "cv_rmse_mean": 3.5387956633059865,
+        "naive_mae": 3.824472226260277,
+        "n_samples": 61911,
+        "horizon_hours": 15
+      },
+      "18": {
+        "cv_mae_mean": 2.7502962330241436,
+        "cv_mae_std": 0.11996964619010286,
+        "cv_rmse_mean": 3.81673821709873,
+        "naive_mae": 3.4437017288738074,
+        "n_samples": 61890,
+        "horizon_hours": 18
+      },
+      "21": {
+        "cv_mae_mean": 2.831811633260633,
+        "cv_mae_std": 0.17600415526129212,
+        "cv_rmse_mean": 3.930819362630393,
+        "naive_mae": 2.905930272026378,
+        "n_samples": 61869,
+        "horizon_hours": 21
+      },
+      "24": {
+        "cv_mae_mean": 3.0313168653184652,
+        "cv_mae_std": 0.23425708093621458,
+        "cv_rmse_mean": 4.224561359383371,
+        "naive_mae": 2.6109235545207605,
+        "n_samples": 61848,
+        "horizon_hours": 24
+      }
+    }
   },
   "rain": {
-    "cv_accuracy_mean": 0.7880783931040091,
-    "cv_f1_mean": 0.3910986176242616,
-    "naive_accuracy": 0.8864656518345043,
-    "positive_rate": 0.11353434816549571,
-    "n_samples": 61488,
-    "horizon_hours": 6
+    "horizons": {
+      "3": {
+        "cv_accuracy_mean": 0.8309280012900104,
+        "cv_f1_mean": 0.48732895843597557,
+        "naive_accuracy": 0.8870291537667698,
+        "positive_rate": 0.11297084623323013,
+        "n_samples": 62016,
+        "horizon_hours": 3
+      },
+      "6": {
+        "cv_accuracy_mean": 0.7895670402322018,
+        "cv_f1_mean": 0.3888096089489953,
+        "naive_accuracy": 0.8870775283797729,
+        "positive_rate": 0.11292247162022703,
+        "n_samples": 62016,
+        "horizon_hours": 6
+      },
+      "9": {
+        "cv_accuracy_mean": 0.7825122954124002,
+        "cv_f1_mean": 0.327662914509044,
+        "naive_accuracy": 0.8870936532507739,
+        "positive_rate": 0.112906346749226,
+        "n_samples": 62016,
+        "horizon_hours": 9
+      },
+      "12": {
+        "cv_accuracy_mean": 0.7701765701846327,
+        "cv_f1_mean": 0.2952943825758363,
+        "naive_accuracy": 0.887109778121775,
+        "positive_rate": 0.11289022187822498,
+        "n_samples": 62016,
+        "horizon_hours": 12
+      },
+      "15": {
+        "cv_accuracy_mean": 0.7754575505925986,
+        "cv_f1_mean": 0.2553651425644845,
+        "naive_accuracy": 0.887142027863777,
+        "positive_rate": 0.11285797213622291,
+        "n_samples": 62016,
+        "horizon_hours": 15
+      },
+      "18": {
+        "cv_accuracy_mean": 0.785011690719987,
+        "cv_f1_mean": 0.22956125398900312,
+        "naive_accuracy": 0.8871742776057792,
+        "positive_rate": 0.11282572239422084,
+        "n_samples": 62016,
+        "horizon_hours": 18
+      },
+      "21": {
+        "cv_accuracy_mean": 0.7892646940256389,
+        "cv_f1_mean": 0.2113606999950044,
+        "naive_accuracy": 0.8871742776057792,
+        "positive_rate": 0.11282572239422084,
+        "n_samples": 62016,
+        "horizon_hours": 21
+      },
+      "24": {
+        "cv_accuracy_mean": 0.7874103039587197,
+        "cv_f1_mean": 0.19333200756946164,
+        "naive_accuracy": 0.8871742776057792,
+        "positive_rate": 0.11282572239422084,
+        "n_samples": 62016,
+        "horizon_hours": 24
+      }
+    }
   },
   "condition": {
-    "cv_accuracy_mean": 0.6297705264871022,
-    "cv_macro_f1_mean": 0.4659794069637048,
-    "naive_accuracy": 0.630569931321811,
-    "classes": [
-      "Clear",
-      "Clouds",
-      "Rain",
-      "Snow",
-      "Thunderstorm"
-    ],
-    "n_samples": 61446,
-    "horizon_hours": 6
+    "horizons": {
+      "3": {
+        "cv_accuracy_mean": 0.7191709008791032,
+        "cv_macro_f1_mean": 0.6042608911544907,
+        "naive_accuracy": 0.7176385192354222,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61995,
+        "horizon_hours": 3
+      },
+      "6": {
+        "cv_accuracy_mean": 0.6332903017589157,
+        "cv_macro_f1_mean": 0.46970457412509703,
+        "naive_accuracy": 0.6313615387097815,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61974,
+        "horizon_hours": 6
+      },
+      "9": {
+        "cv_accuracy_mean": 0.5928773204196933,
+        "cv_macro_f1_mean": 0.3891172570398655,
+        "naive_accuracy": 0.5805368585863477,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61953,
+        "horizon_hours": 9
+      },
+      "12": {
+        "cv_accuracy_mean": 0.5693121265945422,
+        "cv_macro_f1_mean": 0.3415616399091391,
+        "naive_accuracy": 0.5512981980236388,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61932,
+        "horizon_hours": 12
+      },
+      "15": {
+        "cv_accuracy_mean": 0.5555241479567113,
+        "cv_macro_f1_mean": 0.3014123628499165,
+        "naive_accuracy": 0.5281936974043385,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61911,
+        "horizon_hours": 15
+      },
+      "18": {
+        "cv_accuracy_mean": 0.5430198739699468,
+        "cv_macro_f1_mean": 0.28024945140678503,
+        "naive_accuracy": 0.512861528518339,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61890,
+        "horizon_hours": 18
+      },
+      "21": {
+        "cv_accuracy_mean": 0.5373393679786632,
+        "cv_macro_f1_mean": 0.26730204800409896,
+        "naive_accuracy": 0.5069420873135173,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61869,
+        "horizon_hours": 21
+      },
+      "24": {
+        "cv_accuracy_mean": 0.5390290241733366,
+        "cv_macro_f1_mean": 0.2575108584136395,
+        "naive_accuracy": 0.5009539516233347,
+        "classes": [
+          "Clear",
+          "Clouds",
+          "Rain",
+          "Snow",
+          "Thunderstorm"
+        ],
+        "n_samples": 61848,
+        "horizon_hours": 24
+      }
+    }
   },
   "feature_columns": [
     "humidity",
     "pressure_hpa",
     "wind_speed",
-    "wind_direction",
     "cloud_cover",
     "precipitation_mm",
     "hour",
@@ -46,6 +277,8 @@
     "hour_cos",
     "doy_sin",
     "doy_cos",
+    "wind_dir_sin",
+    "wind_dir_cos",
     "t_lag_1",
     "t_lag_3",
     "t_lag_6",
@@ -63,7 +296,6 @@
     "humidity": "Относительная влажность, %",
     "pressure_hpa": "Атмосферное давление, hPa",
     "wind_speed": "Скорость ветра, м/с",
-    "wind_direction": "Направление ветра, градусы",
     "cloud_cover": "Облачность, %",
     "precipitation_mm": "Осадки за час, мм",
     "hour": "Час суток (UTC)",
@@ -74,6 +306,8 @@
     "hour_cos": "Час суток (косинус, циклическое кодирование)",
     "doy_sin": "День года (синус, сезонность)",
     "doy_cos": "День года (косинус, сезонность)",
+    "wind_dir_sin": "Направление ветра (синус, циклическое кодирование)",
+    "wind_dir_cos": "Направление ветра (косинус, циклическое кодирование)",
     "t_lag_1": "Температура 1 час назад",
     "t_lag_3": "Температура 3 часа назад",
     "t_lag_6": "Температура 6 часов назад",

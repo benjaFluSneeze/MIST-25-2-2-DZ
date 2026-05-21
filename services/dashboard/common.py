@@ -86,7 +86,7 @@ def get_ingest_runs(limit: int = 30) -> list[dict]:
     return r.json()
 
 
-def post_predict(city_id: int, horizon_hours: int = 6) -> dict:
+def post_predict(city_id: int, horizon_hours: int = 12) -> dict:
     r = requests.post(
         f"{API_URL}/predict",
         json={"city_id": city_id, "horizon_hours": horizon_hours},
@@ -110,8 +110,23 @@ def get_metrics() -> dict:
 
 
 @st.cache_data(ttl=300)
-def get_feature_importance(model_name: str) -> list[dict]:
-    r = requests.get(f"{API_URL}/predict/feature-importance/{model_name}", timeout=10)
+def get_horizons() -> dict:
+    try:
+        r = requests.get(f"{API_URL}/predict/horizons", timeout=10)
+        if r.status_code != 200:
+            return {"horizons": [12], "default": 12}
+        return r.json()
+    except Exception:  # noqa: BLE001
+        return {"horizons": [12], "default": 12}
+
+
+@st.cache_data(ttl=300)
+def get_feature_importance(model_name: str, horizon: int = 12) -> list[dict]:
+    r = requests.get(
+        f"{API_URL}/predict/feature-importance/{model_name}",
+        params={"horizon": horizon},
+        timeout=10,
+    )
     if r.status_code != 200:
         return []
     return r.json()

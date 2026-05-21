@@ -1,4 +1,4 @@
-"""Loads trained models from disk and runs inference."""
+"""Loads trained per-horizon model bundles and runs inference."""
 from __future__ import annotations
 
 import json
@@ -18,12 +18,19 @@ log = logging.getLogger(__name__)
 
 ARTIFACT_DIR = Path("/app/ml/artifacts")
 
+DEFAULT_HORIZON = 12
+
 
 class ModelBundle:
+    """Holds the three per-horizon model dicts loaded from disk.
+
+    Each artifact is a dict {"models": {h: model}, "features": [...], "horizons": [...]}.
+    """
+
     def __init__(self):
-        self.temp = self._load("temp_model.joblib")
-        self.rain = self._load("rain_model.joblib")
-        self.condition = self._load("condition_model.joblib")
+        self.temp = self._load("temp_models.joblib")
+        self.rain = self._load("rain_models.joblib")
+        self.condition = self._load("condition_models.joblib")
         self.metrics = self._load_metrics()
 
     def _load(self, name: str):
@@ -53,6 +60,26 @@ class ModelBundle:
             "rain": self.rain is not None,
             "condition": self.condition is not None,
         }
+
+    @property
+    def horizons(self) -> list[int]:
+        for b in (self.temp, self.rain, self.condition):
+            if b is not None and b.get("horizons"):
+                return list(b["horizons"])
+        return []
+
+    def get_model(self, task: str, horizon: int):
+        """Return the model trained at the closest available horizon."""
+        bundle = {"temp": self.temp, "rain": self.rain, "condition": self.condition}.get(task)
+        if bundle is None:
+            return None
+        models = bundle.get("models") or {}
+        if not models:
+            return None
+        if horizon in models:
+            return models[horizon]
+        closest = min(models.keys(), key=lambda h: abs(h - horizon))
+        return models[closest]
 
 
 _bundle: ModelBundle | None = None
@@ -99,9 +126,11 @@ def _load_recent_frame(session: Session, city_id: int, lookback_hours: int = 48)
     return df.sort_values("ts").reset_index(drop=True)
 
 
-def _run_inference(last_row: pd.DataFrame) -> dict:
-    """Run all 3 models on a single prepared row. Used by both predict modes."""
+def _run_inference(last_row: pd.DataFrame, horizon: int) -> dict:
+    """Run all 3 models for the requested horizon on a single prepared row."""
     bundle = get_bundle()
+
+    # Pick features from whichever artifact is loaded.
     feats = None
     for b in (bundle.temp, bundle.rain, bundle.condition):
         if b is not None:
@@ -117,15 +146,19 @@ def _run_inference(last_row: pd.DataFrame) -> dict:
 
     out = {"based_on_ts": last_row["ts"].iloc[0].to_pydatetime()}
 
-    if bundle.temp is not None:
-        out["predicted_temperature_c"] = float(bundle.temp["model"].predict(X)[0])
+    temp_model = bundle.get_model("temp", horizon)
+    if temp_model is not None:
+        out["predicted_temperature_c"] = float(temp_model.predict(X)[0])
     else:
         out["predicted_temperature_c"] = None
 
-    if bundle.rain is not None:
-        proba = bundle.rain["model"].predict_proba(X)[0]
-        classes = bundle.rain["model"].classes_.tolist()
-        idx_pos = classes.index(1) if 1 in classes else (classes.index("1") if "1" in classes else None)
+    rain_model = bundle.get_model("rain", horizon)
+    if rain_model is not None:
+        proba = rain_model.predict_proba(X)[0]
+        classes = rain_model.classes_.tolist()
+        idx_pos = classes.index(1) if 1 in classes else (
+            classes.index("1") if "1" in classes else None
+        )
         p = float(proba[idx_pos]) if idx_pos is not None else float(proba[-1])
         out["predicted_rain_probability"] = p
         out["predicted_rain"] = p >= 0.5
@@ -133,8 +166,9 @@ def _run_inference(last_row: pd.DataFrame) -> dict:
         out["predicted_rain_probability"] = None
         out["predicted_rain"] = None
 
-    if bundle.condition is not None:
-        pred = bundle.condition["model"].predict(X)
+    cond_model = bundle.get_model("condition", horizon)
+    if cond_model is not None:
+        pred = cond_model.predict(X)
         cls = pred[0]
         if hasattr(cls, "__iter__") and not isinstance(cls, str):
             cls = cls[0]
@@ -145,25 +179,20 @@ def _run_inference(last_row: pd.DataFrame) -> dict:
     return out
 
 
-def predict_for_city(session: Session, city_id: int) -> dict:
-    """Predict using the latest DB observation as input."""
+def predict_for_city(session: Session, city_id: int, horizon: int = DEFAULT_HORIZON) -> dict:
+    """Predict using the latest DB observation as input, for the given horizon."""
     df = _load_recent_frame(session, city_id)
     if df.empty:
         raise ValueError("no recent observations for this city")
     df = add_time_features(df)
     df = add_lag_features(df)
-    return _run_inference(df.iloc[-1:].copy())
+    return _run_inference(df.iloc[-1:].copy(), horizon)
 
 
 def predict_with_overrides(
-    session: Session, city_id: int, overrides: dict
+    session: Session, city_id: int, overrides: dict, horizon: int = DEFAULT_HORIZON
 ) -> dict:
-    """Predict treating `overrides` as a synthetic 'current' observation.
-
-    Pulls real DB history for the city to compute lag/rolling features,
-    then appends a synthetic row with user-provided current conditions
-    one hour after the latest DB observation, and predicts from that row.
-    """
+    """Predict treating `overrides` as a synthetic 'current' observation."""
     history = _load_recent_frame(session, city_id)
     if history.empty:
         raise ValueError("no recent observations for this city")
@@ -184,4 +213,4 @@ def predict_with_overrides(
     full = pd.concat([history, pd.DataFrame([synthetic])], ignore_index=True)
     full = add_time_features(full)
     full = add_lag_features(full)
-    return _run_inference(full.iloc[-1:].copy())
+    return _run_inference(full.iloc[-1:].copy(), horizon)

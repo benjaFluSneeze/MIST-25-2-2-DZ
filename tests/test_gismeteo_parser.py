@@ -56,15 +56,26 @@ SAMPLE_HTML = """
 """
 
 
-def test_parse_page_returns_aggregated_forecast():
+def test_parse_page_returns_eight_slot_forecasts():
     result = parse_page(SAMPLE_HTML)
     assert result is not None
-    # 8 hourly temperatures, mean = 18.0
-    assert abs(result["temperature_c"] - 18.0) < 0.01
-    # 0 + 0 + 0.2 + 2 + 1.5 + 0.5 + 0 + 0 = 4.2 mm
-    assert abs(result["precipitation_mm"] - 4.2) < 0.01
-    # Severe condition wins: Thunderstorm > Rain > Clouds
-    assert result["weather_main"] == "Thunderstorm"
+    assert len(result) == 8
+    # First slot's temperature
+    assert result[0]["temperature_c"] == 17.0
+    # Spike slot precipitation = 2.0
+    assert result[3]["precipitation_mm"] == 2.0
+    # Slot with thunder description → severe class
+    assert result[3]["weather_main"] == "Thunderstorm"
+
+
+def test_parse_page_target_ts_steps_three_hours():
+    result = parse_page(SAMPLE_HTML)
+    assert result is not None
+    diffs = [
+        (result[i + 1]["target_ts"] - result[i]["target_ts"]).total_seconds() / 3600
+        for i in range(len(result) - 1)
+    ]
+    assert all(abs(d - 3) < 1e-6 for d in diffs)
 
 
 def test_parse_page_ignores_city_slug_numbers():
@@ -79,28 +90,10 @@ def test_parse_page_ignores_city_slug_numbers():
     """
     result = parse_page(html)
     assert result is not None
-    assert -80 <= result["temperature_c"] <= 60
-    assert result["temperature_c"] == 12.0
+    assert len(result) == 1
+    assert -80 <= result[0]["temperature_c"] <= 60
+    assert result[0]["temperature_c"] == 12.0
 
 
 def test_parse_page_returns_none_on_empty_markup():
     assert parse_page("<html><body>nothing here</body></html>") is None
-
-
-def test_condition_classification_clear_when_no_rain():
-    html = """
-    <html><body>
-      <div data-row="icon-tooltip">
-        <div class="row-item" data-tooltip="Ясно"></div>
-        <div class="row-item" data-tooltip="Ясно"></div>
-        <div class="row-item" data-tooltip="Облачно"></div>
-      </div>
-      <div data-row="temperature-air"><div class="values">
-        <div class="value"><temperature-value value="20"></temperature-value></div>
-      </div></div>
-    </body></html>
-    """
-    result = parse_page(html)
-    assert result is not None
-    # Clear appears twice, Clouds once — most frequent without severe = Clear
-    assert result["weather_main"] == "Clear"

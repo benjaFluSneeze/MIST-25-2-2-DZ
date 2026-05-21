@@ -128,19 +128,20 @@ def ingest_external_forecast():
         total = 0
         for cfg in CITIES:
             city = cities[cfg["name"]]
-            data = gismeteo_parser.fetch_tomorrow(cfg["gismeteo_slug"])
-            if not data:
+            forecasts = gismeteo_parser.fetch_tomorrow(cfg["gismeteo_slug"])
+            if not forecasts:
                 continue
             with SessionLocal() as s:
-                stmt = pg_insert(ExternalForecast).values(
-                    city_id=city.id, source="gismeteo", **data
-                )
-                stmt = stmt.on_conflict_do_nothing(
-                    index_elements=["city_id", "target_ts", "source"]
-                )
-                result = s.execute(stmt)
+                for data in forecasts:
+                    stmt = pg_insert(ExternalForecast).values(
+                        city_id=city.id, source="gismeteo", **data
+                    )
+                    stmt = stmt.on_conflict_do_nothing(
+                        index_elements=["city_id", "target_ts", "source"]
+                    )
+                    result = s.execute(stmt)
+                    total += result.rowcount or 0
                 s.commit()
-                total += result.rowcount or 0
         return total
 
     _log_run("gismeteo", _do)
