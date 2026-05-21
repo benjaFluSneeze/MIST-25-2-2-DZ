@@ -40,7 +40,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./ml/artifacts:/app/ml/artifacts:ro
+      - ./ml/artifacts:/app/ml/artifacts
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',timeout=3).status==200 else 1)"]
