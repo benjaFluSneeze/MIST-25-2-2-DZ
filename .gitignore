@@ -16,7 +16,11 @@ env/
 *.log
 data/*.csv
 data/*.parquet
-ml/artifacts/*.joblib
+# Pre-trained CatBoost bundles are committed so VPS deploys skip the 10-min
+# training step. Local single-horizon artifacts (legacy format) stay ignored.
+ml/artifacts/temp_model.joblib
+ml/artifacts/rain_model.joblib
+ml/artifacts/condition_model.joblib
 !ml/artifacts/.gitkeep
 postgres_data/
 docker-compose.override.yml
