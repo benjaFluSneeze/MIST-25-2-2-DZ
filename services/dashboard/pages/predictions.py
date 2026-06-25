@@ -72,7 +72,14 @@ st.divider()
 st.subheader("Наш прогноз vs официальный (Gismeteo)")
 
 obs = get_observations(city["id"], hours=48, source="open_meteo")
-gismeteo = get_external_forecasts(city["id"], limit=40)
+gismeteo = get_external_forecasts(city["id"], limit=60)
+
+now_utc = pd.Timestamp.now(tz="UTC")
+# Window the chart shows by default: last 48 h of history + a bit past the
+# furthest Gismeteo/our slot. Pads the autoscale so the chart isn't dragged
+# by ancient leftover rows from older parser versions.
+chart_start = now_utc - pd.Timedelta(hours=48)
+chart_end = max(now_utc + pd.Timedelta(hours=36), target_ts + pd.Timedelta(hours=3))
 
 fig = go.Figure()
 
@@ -87,24 +94,25 @@ if obs:
         line=dict(color=MUTED, width=2),
     ))
 
-# Gismeteo line — only the most recent fetch (latest fetched_at per target_ts)
-gismeteo_line_x: list = []
-gismeteo_line_y: list = []
+# Gismeteo line — only the most recent fetch (latest fetched_at per target_ts),
+# and only slots still relevant (future or up to ~3h in the past).
 gismeteo_target_at_horizon: float | None = None
+df_g_visible = None
 if gismeteo:
     df_g = pd.DataFrame(gismeteo)
     df_g["target_ts"] = pd.to_datetime(df_g["target_ts"], utc=True)
     df_g["fetched_at"] = pd.to_datetime(df_g["fetched_at"], utc=True)
-    # keep only the latest fetch per target_ts
+    # Drop ancient leftovers from earlier parser versions and other stale rows.
+    df_g = df_g[df_g["target_ts"] >= now_utc - pd.Timedelta(hours=3)]
+    # Keep only the latest fetch per target_ts (de-dupe).
     df_g = df_g.sort_values("fetched_at").drop_duplicates("target_ts", keep="last")
-    df_g = df_g.sort_values("target_ts")
+    df_g = df_g.sort_values("target_ts").reset_index(drop=True)
     if not df_g.empty:
-        gismeteo_line_x = df_g["target_ts"].tolist()
-        gismeteo_line_y = df_g["temperature_c"].tolist()
+        df_g_visible = df_g
         fig.add_trace(go.Scatter(
-            x=gismeteo_line_x, y=gismeteo_line_y,
+            x=df_g["target_ts"], y=df_g["temperature_c"],
             mode="lines+markers",
-            name="Gismeteo (прогноз на завтра)",
+            name="Gismeteo (прогноз)",
             line=dict(color=WARNING, width=2.5, dash="dot"),
             marker=dict(size=8, color=WARNING),
         ))
@@ -131,6 +139,8 @@ fig.update_layout(
     yaxis_title="Температура, °C",
     legend=dict(orientation="h", y=-0.25),
 )
+# Force the visible window so Plotly doesn't autoscale to any stale outliers.
+fig.update_xaxes(range=[chart_start, chart_end])
 st.plotly_chart(fig, use_container_width=True)
 
 # Side-by-side KPI: ours vs Gismeteo at the same target time
