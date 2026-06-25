@@ -48,6 +48,18 @@ fig = px.line(
 fig.update_layout(height=400, margin=dict(t=30, b=20))
 st.plotly_chart(fig, use_container_width=True)
 
+# Fixed colour per weather type so different cities show the same hue
+# for the same condition (Ясно is always yellow, Дождь always blue, etc).
+CONDITION_COLORS = {
+    "Ясно":          "#fbbf24",  # солнечно-жёлтый
+    "Облачно":       "#94a3b8",  # серый
+    "Дождь":         "#3b82f6",  # синий
+    "Снег":          "#e2e8f0",  # светло-серый
+    "Туман":         "#a3a3a3",  # тёмно-серый
+    "Гроза":         "#a855f7",  # фиолетовый
+    "—":             "#475569",
+}
+
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("Осадки")
@@ -55,13 +67,28 @@ with col1:
         df, x="ts", y="precipitation_mm",
         labels={"ts": "Время (UTC)", "precipitation_mm": "Осадки, мм"},
     )
-    fig.update_layout(height=350, margin=dict(t=30, b=20))
+    # Brighter, thicker bars (default plotly bars are 1px and washed out
+    # on a dark theme; force a vivid blue and let plotly auto-pick the
+    # bar width based on the time spacing).
+    fig.update_traces(
+        marker_color="#3b82f6",
+        marker_line_color="#60a5fa",
+        marker_line_width=0,
+    )
+    fig.update_layout(
+        height=350, margin=dict(t=30, b=20),
+        bargap=0.05,  # plotly's default 0.2 leaves big gaps for sparse hourly bars
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Тип погоды (частоты)")
     counts = df["Тип погоды"].value_counts().reset_index()
     counts.columns = ["Тип погоды", "Часов"]
-    fig = px.pie(counts, names="Тип погоды", values="Часов")
+    fig = px.pie(
+        counts, names="Тип погоды", values="Часов",
+        color="Тип погоды",
+        color_discrete_map=CONDITION_COLORS,
+    )
     fig.update_layout(height=350, margin=dict(t=30, b=20))
     st.plotly_chart(fig, use_container_width=True)
