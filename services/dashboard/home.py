@@ -48,12 +48,16 @@ for col, (icon, title, desc) in zip(cols, cards):
 
 st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
 
-api = os.environ.get("API_URL", "http://api:8000")
+# API_URL is the in-docker-network address (api:8000) used by the dashboard
+# to talk to the API. PUBLIC_API_URL is what we show to the user — it must
+# be reachable from their browser. Defaults to localhost for local dev;
+# set to "https://api.<domain>" in production (.env).
+public_api = os.environ.get("PUBLIC_API_URL", "http://localhost:8000")
 st.markdown(
     f"""
     <div style="text-align: center; color: #64748b; font-size: 0.85rem; padding: 20px 0;">
-        REST API · <code>{api}</code> · документация <a href="{api}/docs" target="_blank"
-            style="color: {ACCENT}; text-decoration: none;">/docs</a>
+        REST API · <a href="{public_api}/docs" target="_blank"
+            style="color: {ACCENT}; text-decoration: none;"><code>{public_api}/docs</code></a>
     </div>
     """,
     unsafe_allow_html=True,

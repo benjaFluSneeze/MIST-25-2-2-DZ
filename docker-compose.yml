@@ -66,6 +66,10 @@ services:
       - api
     environment:
       API_URL: http://api:8000
+      # PUBLIC_API_URL is shown to the user as a clickable link.
+      # Default localhost is correct for local docker compose; override
+      # in .env (e.g. "https://api.weather.example.com") for production.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000}
       DATABASE_URL: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
     ports:
       - "8501:8501"

@@ -16,6 +16,9 @@ services:
 
   dashboard:
     ports: []
+    environment:
+      # In production the user reaches the API through Caddy at api.<domain>
+      PUBLIC_API_URL: https://api.${DOMAIN_BASE}
 
   caddy:
     image: caddy:2-alpine
