@@ -54,16 +54,39 @@ temp = pred["predicted_temperature_c"]
 p_rain = pred["predicted_rain_probability"]
 target_ts = pd.to_datetime(pred["target_ts"], utc=True)
 
+# Render times in the city's own time zone — that way "12:00" on the chart
+# matches "12:00" on Gismeteo's page for the same city.
+try:
+    from zoneinfo import ZoneInfo
+    city_tz = ZoneInfo(city.get("timezone") or "UTC")
+except Exception:  # noqa: BLE001
+    city_tz = None
+
+def _to_local(ts):
+    """Convert a tz-aware UTC pandas/datetime to the city's local tz."""
+    if city_tz is None or ts is None:
+        return ts
+    if hasattr(ts, "tz_convert"):
+        return ts.tz_convert(city_tz)
+    return ts.astimezone(city_tz)
+
+tz_label = (city.get("timezone") or "UTC").split("/")[-1].replace("_", " ")
+target_ts_local = _to_local(target_ts)
+based_on_local = _to_local(pd.to_datetime(pred["based_on_ts"], utc=True))
+
 c1, c2, c3 = st.columns(3)
 c1.metric(
     f"Прогноз температуры через +{horizon} ч, °C",
     f"{temp:.1f}" if temp is not None else "—",
-    help=f"На {target_ts:%Y-%m-%d %H:%M UTC}",
+    help=f"На {target_ts_local:%Y-%m-%d %H:%M} ({tz_label})",
 )
 c2.metric("Вероятность дождя", f"{p_rain*100:.0f}%" if p_rain is not None else "—")
 c3.metric("Тип погоды", condition_ru(pred["predicted_condition"]))
 
-st.caption(f"Прогноз построен на основе наблюдения от {pred['based_on_ts']} UTC")
+st.caption(
+    f"Прогноз построен на основе наблюдения от {based_on_local:%Y-%m-%d %H:%M} "
+    f"({tz_label})"
+)
 
 # ---------------------------------------------------------------------------
 # Chart: history (last 48h) + our prediction + Gismeteo curve for tomorrow
@@ -92,8 +115,9 @@ if obs:
     # genuinely-unknown area to its right.
     df_obs = df_obs[df_obs["ts"] <= now_utc].sort_values("ts")
     if not df_obs.empty:
+        x_obs = df_obs["ts"].dt.tz_convert(city_tz) if city_tz else df_obs["ts"]
         fig.add_trace(go.Scatter(
-            x=df_obs["ts"], y=df_obs["temperature_c"],
+            x=x_obs, y=df_obs["temperature_c"],
             mode="lines",
             name="История (факт)",
             line=dict(color=MUTED, width=2),
@@ -114,8 +138,9 @@ if gismeteo:
     df_g = df_g.sort_values("target_ts").reset_index(drop=True)
     if not df_g.empty:
         df_g_visible = df_g
+        x_g = df_g["target_ts"].dt.tz_convert(city_tz) if city_tz else df_g["target_ts"]
         fig.add_trace(go.Scatter(
-            x=df_g["target_ts"], y=df_g["temperature_c"],
+            x=x_g, y=df_g["temperature_c"],
             mode="lines+markers",
             name="Gismeteo (прогноз)",
             line=dict(color=WARNING, width=2.5, dash="dot"),
@@ -130,7 +155,7 @@ if gismeteo:
 # Our prediction as a single dot
 if temp is not None:
     fig.add_trace(go.Scatter(
-        x=[target_ts], y=[temp],
+        x=[target_ts_local if city_tz else target_ts], y=[temp],
         mode="markers",
         name=f"Наш прогноз (+{horizon} ч)",
         marker=dict(size=16, color=ACCENT_3,
@@ -140,12 +165,14 @@ if temp is not None:
 fig.update_layout(
     height=420,
     margin=dict(t=30, b=30),
-    xaxis_title="Время (UTC)",
+    xaxis_title=f"Время ({tz_label})" if city_tz else "Время (UTC)",
     yaxis_title="Температура, °C",
     legend=dict(orientation="h", y=-0.25),
 )
 # Force the visible window so Plotly doesn't autoscale to any stale outliers.
-fig.update_xaxes(range=[chart_start, chart_end])
+chart_start_x = chart_start.tz_convert(city_tz) if city_tz else chart_start
+chart_end_x = chart_end.tz_convert(city_tz) if city_tz else chart_end
+fig.update_xaxes(range=[chart_start_x, chart_end_x])
 st.plotly_chart(fig, use_container_width=True)
 
 # Side-by-side KPI: ours vs Gismeteo at the same target time
