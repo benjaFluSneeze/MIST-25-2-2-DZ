@@ -99,10 +99,16 @@ def reload_bundle() -> None:
 
 
 def _load_recent_frame(session: Session, city_id: int, lookback_hours: int = 48) -> pd.DataFrame:
+    # Belt-and-braces: even if some forecast rows leak into the DB as
+    # observations, we must base our prediction on real PAST data only.
+    # Without this, based_on_ts can jump 24 h into the future.
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
     rows = session.execute(
         select(WeatherObservation)
         .where(WeatherObservation.city_id == city_id)
         .where(WeatherObservation.source.in_(["open_meteo", "open_meteo_archive"]))
+        .where(WeatherObservation.ts <= now)
         .order_by(WeatherObservation.ts.desc())
         .limit(lookback_hours)
     ).scalars().all()

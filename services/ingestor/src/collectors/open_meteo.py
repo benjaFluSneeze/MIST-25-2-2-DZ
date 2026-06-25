@@ -54,19 +54,28 @@ def fetch_history(lat: float, lon: float, start_date: str, end_date: str, tz: st
 
 
 def fetch_recent(lat: float, lon: float, tz: str, past_days: int = 2) -> list[dict]:
-    """Fetch recent hourly observations (forecast API also returns past_days of history)."""
+    """Fetch recent hourly OBSERVATIONS.
+
+    The /forecast endpoint returns `past_days` of real history plus
+    `forecast_days` of model forecast. We only want the past hours so the
+    DB stores genuine observations — the future rows would otherwise leak
+    into the ML model's lag features and into the dashboard's history line
+    as fake observations.
+    """
     params = {
         "latitude": lat,
         "longitude": lon,
         "hourly": ",".join(HOURLY_VARS),
         "timezone": tz,
         "past_days": past_days,
-        "forecast_days": 1,
+        "forecast_days": 1,  # API requires >= 1; we filter the future out below
     }
     r = requests.get(FORECAST_URL, params=params, timeout=30)
     r.raise_for_status()
     payload = r.json()
-    return _parse_hourly(payload)
+    rows = _parse_hourly(payload)
+    now = datetime.now(timezone.utc)
+    return [r for r in rows if r["ts"] <= now]
 
 
 def _parse_hourly(payload: dict) -> list[dict]:
