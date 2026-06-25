@@ -26,12 +26,15 @@ services:
       INGEST_BACKFILL_YEARS: ${INGEST_BACKFILL_YEARS}
       INGEST_CURRENT_INTERVAL_MIN: ${INGEST_CURRENT_INTERVAL_MIN}
       INGEST_FORECAST_INTERVAL_HOURS: ${INGEST_FORECAST_INTERVAL_HOURS}
-    # Bypass any DNS-level blocking of api.openweathermap.org (some ISPs
-    # and corporate filters return 127.0.0.1 for it, which produces
-    # "Connection refused" from inside the container).
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
+    # OpenWeather serves api.openweathermap.org via round-robin DNS across
+    # several clouds (OVH France, Hetzner Germany, ...). On some networks
+    # a subset of those IPs is unreachable, and a fresh DNS lookup may roll
+    # the unlucky one. Pinning to the EU subdomain's IP gives a stable
+    # working route from most networks (override in your local environment
+    # if 176.9.63.49 ever stops working — `nslookup api.openweathermap.org`
+    # to find a current alternative).
+    extra_hosts:
+      - "api.openweathermap.org:176.9.63.49"
     restart: unless-stopped
 
   api:
