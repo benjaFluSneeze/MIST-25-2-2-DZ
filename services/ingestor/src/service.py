@@ -71,28 +71,45 @@ def backfill_history():
     cities = ensure_cities()
 
     def _do():
+        from datetime import timedelta
+        from sqlalchemy import func
         total = 0
         for cfg in CITIES:
             city = cities[cfg["name"]]
+            # See what archive data we already have for this city
             with SessionLocal() as s:
-                already = s.execute(
-                    select(WeatherObservation.id)
+                last_ts = s.execute(
+                    select(func.max(WeatherObservation.ts))
                     .where(WeatherObservation.city_id == city.id)
                     .where(WeatherObservation.source == "open_meteo_archive")
-                    .limit(1)
-                ).first()
-            if already:
-                log.info("skip backfill for %s (already present)", cfg["name"])
-                continue
+                ).scalar()
+
+            if last_ts is None:
+                # No history at all → full backfill of the configured window
+                city_start, city_end = start_date, end_date
+                log.info("%s: full backfill %s..%s", cfg["name"], city_start, city_end)
+            else:
+                # Gap-fill: from the day AFTER our last archive row up to end_date
+                next_day = (last_ts.date() + timedelta(days=1)).isoformat()
+                if next_day > end_date:
+                    log.info("%s: archive up to date (%s)", cfg["name"], last_ts.date())
+                    continue
+                city_start, city_end = next_day, end_date
+                log.info(
+                    "%s: gap-fill %s..%s (last archive row was %s)",
+                    cfg["name"], city_start, city_end, last_ts,
+                )
+
             try:
                 rows = open_meteo.fetch_history(
-                    cfg["lat"], cfg["lon"], start_date, end_date, cfg["tz"]
+                    cfg["lat"], cfg["lon"], city_start, city_end, cfg["tz"]
                 )
             except Exception as e:  # noqa: BLE001
                 log.warning("open-meteo history failed for %s: %s", cfg["name"], e)
                 continue
-            total += _upsert_observations(rows, city.id, "open_meteo_archive")
-            log.info("%s: backfilled %d hourly rows", cfg["name"], len(rows))
+            inserted = _upsert_observations(rows, city.id, "open_meteo_archive")
+            total += inserted
+            log.info("%s: added %d hourly rows", cfg["name"], inserted)
         return total
 
     _log_run("open_meteo_backfill", _do)
@@ -113,7 +130,11 @@ def ingest_recent():
                 log.warning("open-meteo recent failed for %s: %s", cfg["name"], e)
 
             if api_key:
-                ow = openweather.fetch_current(cfg["lat"], cfg["lon"], api_key)
+                try:
+                    ow = openweather.fetch_current(cfg["lat"], cfg["lon"], api_key)
+                except Exception as e:  # noqa: BLE001
+                    log.warning("openweather failed for %s: %s", cfg["name"], e)
+                    ow = None
                 if ow:
                     total += _upsert_observations([ow], city.id, "openweather")
         return total
