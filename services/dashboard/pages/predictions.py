@@ -86,13 +86,18 @@ fig = go.Figure()
 if obs:
     df_obs = pd.DataFrame(obs)
     df_obs["ts"] = pd.to_datetime(df_obs["ts"], utc=True)
-    df_obs = df_obs.sort_values("ts")
-    fig.add_trace(go.Scatter(
-        x=df_obs["ts"], y=df_obs["temperature_c"],
-        mode="lines",
-        name="История (последние 48 ч)",
-        line=dict(color=MUTED, width=2),
-    ))
+    # Open-Meteo's "recent" endpoint also returns the next ~24 h as forecast
+    # rows alongside real history. Drop anything in the future so the grey
+    # "history" line ends sharply at "now" and our pink dot lives in the
+    # genuinely-unknown area to its right.
+    df_obs = df_obs[df_obs["ts"] <= now_utc].sort_values("ts")
+    if not df_obs.empty:
+        fig.add_trace(go.Scatter(
+            x=df_obs["ts"], y=df_obs["temperature_c"],
+            mode="lines",
+            name="История (факт)",
+            line=dict(color=MUTED, width=2),
+        ))
 
 # Gismeteo line — only the most recent fetch (latest fetched_at per target_ts),
 # and only slots still relevant (future or up to ~3h in the past).
