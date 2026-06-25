@@ -26,6 +26,12 @@ services:
       INGEST_BACKFILL_YEARS: ${INGEST_BACKFILL_YEARS}
       INGEST_CURRENT_INTERVAL_MIN: ${INGEST_CURRENT_INTERVAL_MIN}
       INGEST_FORECAST_INTERVAL_HOURS: ${INGEST_FORECAST_INTERVAL_HOURS}
+    # Bypass any DNS-level blocking of api.openweathermap.org (some ISPs
+    # and corporate filters return 127.0.0.1 for it, which produces
+    # "Connection refused" from inside the container).
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     restart: unless-stopped
 
   api:
