@@ -150,8 +150,10 @@ def ingest_external_forecast():
         for cfg in CITIES:
             city = cities[cfg["name"]]
             # Today (only future slots) + tomorrow (all 8 slots).
+            # Pass tz so 3-hour slots from the city-local Gismeteo page are
+            # anchored to the right UTC instants (Владивосток UTC+10 etc.).
             for fetch in (gismeteo_parser.fetch_today, gismeteo_parser.fetch_tomorrow):
-                forecasts = fetch(cfg["gismeteo_slug"])
+                forecasts = fetch(cfg["gismeteo_slug"], tz=cfg["tz"])
                 if not forecasts:
                     continue
                 with SessionLocal() as s:

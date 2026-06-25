@@ -13,6 +13,7 @@ out past slots; `fetch_tomorrow` parses `/weather-<slug>/tomorrow/`. Both return
 a list of forecast dicts the dashboard can draw next to our model's prediction.
 """
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import logging
 import re
 import requests
@@ -46,38 +47,50 @@ def _http_get(url: str, slug: str) -> str | None:
     return r.text
 
 
-def fetch_today(slug: str) -> list[dict] | None:
-    """Today's per-slot forecast (only future slots are kept)."""
+def fetch_today(slug: str, tz: str = "UTC") -> list[dict] | None:
+    """Today's per-slot forecast (only future slots are kept).
+
+    `tz` is the IANA timezone of the city — Gismeteo serves each city's page
+    in that city's local time, so we need it to anchor the 8 three-hour slots
+    correctly when converting them to UTC.
+    """
     html = _http_get(TODAY_URL.format(slug=slug), slug)
     if html is None:
         return None
-    return parse_page(html, base_date=date.today(), drop_past=True)
+    local_today = datetime.now(ZoneInfo(tz)).date()
+    return parse_page(html, base_date=local_today, drop_past=True, tz=tz)
 
 
-def fetch_tomorrow(slug: str) -> list[dict] | None:
+def fetch_tomorrow(slug: str, tz: str = "UTC") -> list[dict] | None:
     """Tomorrow's per-slot forecast (all 8 slots are in the future)."""
     html = _http_get(TOMORROW_URL.format(slug=slug), slug)
     if html is None:
         return None
-    return parse_page(html, base_date=date.today() + timedelta(days=1), drop_past=False)
+    local_tomorrow = datetime.now(ZoneInfo(tz)).date() + timedelta(days=1)
+    return parse_page(html, base_date=local_tomorrow, drop_past=False, tz=tz)
 
 
 def parse_page(
     html: str,
     base_date: date | None = None,
     drop_past: bool = False,
+    tz: str = "UTC",
 ) -> list[dict] | None:
     """Parse Gismeteo HTML and return list of per-slot forecasts.
 
-    `base_date` is the calendar day in UTC that the page describes. If None,
-    we keep the original behaviour and assume tomorrow.
-    `drop_past` removes slots whose `target_ts` is already in the past — useful
-    for today's grid, where the first few slots have already happened.
+    `base_date` is the calendar day **in the city's local timezone** that the
+    page describes.
+    `tz` is the IANA timezone of that city (e.g. 'Asia/Vladivostok'). Slot
+    times shown on the page are in city-local hours and are converted to UTC
+    before being stored.
+    `drop_past` removes slots whose `target_ts` is already in the past —
+    useful for today's grid, where the first few slots have already happened.
 
     Returns None if no temperature values found.
     """
+    local_tz = ZoneInfo(tz)
     if base_date is None:
-        base_date = (datetime.now(timezone.utc).date() + timedelta(days=1))
+        base_date = (datetime.now(local_tz).date() + timedelta(days=1))
 
     soup = BeautifulSoup(html, "lxml")
     temps = _extract_temps(soup)
@@ -87,12 +100,13 @@ def parse_page(
     precips = _extract_precipitations_per_slot(soup)
     conditions = _extract_conditions_per_slot(soup)
 
-    day_start = datetime.combine(base_date, datetime.min.time(), tzinfo=timezone.utc)
+    local_day_start = datetime.combine(base_date, datetime.min.time(), tzinfo=local_tz)
     now = datetime.now(timezone.utc)
 
     forecasts: list[dict] = []
     for i, temp in enumerate(temps[:8]):
-        target_ts = day_start + timedelta(hours=i * 3)
+        # Slots are at city-local 00:00, 03:00, ..., 21:00; convert to UTC.
+        target_ts = (local_day_start + timedelta(hours=i * 3)).astimezone(timezone.utc)
         if drop_past and target_ts <= now:
             continue
         forecasts.append({

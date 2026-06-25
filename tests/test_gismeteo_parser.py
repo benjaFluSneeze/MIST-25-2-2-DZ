@@ -118,5 +118,25 @@ def test_base_date_anchors_target_ts_to_that_day():
     target = date(2030, 1, 15)
     result = parse_page(SAMPLE_HTML, base_date=target)
     assert result is not None
+    # Default tz is UTC: slot 0 == 00:00 UTC of base_date, slot 7 == 21:00 UTC.
     assert result[0]["target_ts"] == datetime(2030, 1, 15, 0, 0, tzinfo=timezone.utc)
     assert result[-1]["target_ts"] == datetime(2030, 1, 15, 21, 0, tzinfo=timezone.utc)
+
+
+def test_local_tz_is_converted_to_utc():
+    """Vladivostok is UTC+10, so local 00:00 of 2030-01-15 is 14:00 UTC of 2030-01-14."""
+    target = date(2030, 1, 15)
+    result = parse_page(SAMPLE_HTML, base_date=target, tz="Asia/Vladivostok")
+    assert result is not None
+    assert result[0]["target_ts"] == datetime(2030, 1, 14, 14, 0, tzinfo=timezone.utc)
+    # Local 21:00 → UTC 11:00 the same calendar date in UTC (Jan 15).
+    assert result[-1]["target_ts"] == datetime(2030, 1, 15, 11, 0, tzinfo=timezone.utc)
+
+
+def test_local_tz_moscow_three_hour_shift():
+    """Moscow is UTC+3: local 12:00 → UTC 09:00."""
+    target = date(2030, 6, 15)  # not affected by DST (Russia doesn't observe)
+    result = parse_page(SAMPLE_HTML, base_date=target, tz="Europe/Moscow")
+    assert result is not None
+    # Slot index 4 is local 12:00.
+    assert result[4]["target_ts"] == datetime(2030, 6, 15, 9, 0, tzinfo=timezone.utc)
