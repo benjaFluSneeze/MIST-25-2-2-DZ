@@ -2,18 +2,17 @@
 
 Uses requests + BeautifulSoup as required by the project stack.
 
-Each page exposes 8 three-hour slots inside `widget-row-*` blocks driven by the
-`data-row` attribute:
-  - `temperature-air`: <temperature-value value="N"> in 8 slots
-  - `precipitation-bars`: .row-item .item-unit (Russian decimal comma)
-  - `icon-tooltip`: .row-item[data-tooltip] with a Russian condition phrase
+Each page exposes per-slot data inside `widget-row-*` blocks driven by the
+`data-row` attribute. Crucially, the time-strip widget
+(`.widget-row-datetime-time`) carries an explicit UTC timestamp for every
+slot, so we don't have to guess local time / DST / what the city's tz is —
+we just read what Gismeteo says the target UTC is.
 
-`fetch_today` parses the base `/weather-<slug>/` page (today's grid), filtering
-out past slots; `fetch_tomorrow` parses `/weather-<slug>/tomorrow/`. Both return
-a list of forecast dicts the dashboard can draw next to our model's prediction.
+`fetch_today` parses the base `/weather-<slug>/` page (filters past slots);
+`fetch_tomorrow` parses `/weather-<slug>/tomorrow/`. Both return a list of
+forecast dicts the dashboard can draw next to our model's prediction.
 """
-from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime, timezone
 import logging
 import re
 import requests
@@ -47,76 +46,94 @@ def _http_get(url: str, slug: str) -> str | None:
     return r.text
 
 
-def fetch_today(slug: str, tz: str = "UTC") -> list[dict] | None:
+def fetch_today(slug: str, tz: str | None = None) -> list[dict] | None:
     """Today's per-slot forecast (only future slots are kept).
 
-    `tz` is the IANA timezone of the city — Gismeteo serves each city's page
-    in that city's local time, so we need it to anchor the 8 three-hour slots
-    correctly when converting them to UTC.
+    `tz` is accepted but unused — Gismeteo embeds the absolute UTC of every
+    slot in the page itself, so no timezone arithmetic is needed.
     """
     html = _http_get(TODAY_URL.format(slug=slug), slug)
     if html is None:
         return None
-    local_today = datetime.now(ZoneInfo(tz)).date()
-    return parse_page(html, base_date=local_today, drop_past=True, tz=tz)
+    return parse_page(html, drop_past=True)
 
 
-def fetch_tomorrow(slug: str, tz: str = "UTC") -> list[dict] | None:
+def fetch_tomorrow(slug: str, tz: str | None = None) -> list[dict] | None:
     """Tomorrow's per-slot forecast (all 8 slots are in the future)."""
     html = _http_get(TOMORROW_URL.format(slug=slug), slug)
     if html is None:
         return None
-    local_tomorrow = datetime.now(ZoneInfo(tz)).date() + timedelta(days=1)
-    return parse_page(html, base_date=local_tomorrow, drop_past=False, tz=tz)
+    return parse_page(html, drop_past=False)
 
 
-def parse_page(
-    html: str,
-    base_date: date | None = None,
-    drop_past: bool = False,
-    tz: str = "UTC",
-) -> list[dict] | None:
+def parse_page(html: str, drop_past: bool = False, **_legacy) -> list[dict] | None:
     """Parse Gismeteo HTML and return list of per-slot forecasts.
 
-    `base_date` is the calendar day **in the city's local timezone** that the
-    page describes.
-    `tz` is the IANA timezone of that city (e.g. 'Asia/Vladivostok'). Slot
-    times shown on the page are in city-local hours and are converted to UTC
-    before being stored.
-    `drop_past` removes slots whose `target_ts` is already in the past —
-    useful for today's grid, where the first few slots have already happened.
+    Uses the absolute UTC timestamps Gismeteo encodes in the page; no
+    timezone conversion needed. `drop_past` skips slots that have already
+    passed — useful for today's grid.
 
-    Returns None if no temperature values found.
+    Returns None if no slots found.
     """
-    local_tz = ZoneInfo(tz)
-    if base_date is None:
-        base_date = (datetime.now(local_tz).date() + timedelta(days=1))
-
     soup = BeautifulSoup(html, "lxml")
-    temps = _extract_temps(soup)
-    if not temps:
+    slots = _extract_slots(soup)
+    if not slots:
         return None
 
-    precips = _extract_precipitations_per_slot(soup)
-    conditions = _extract_conditions_per_slot(soup)
-
-    local_day_start = datetime.combine(base_date, datetime.min.time(), tzinfo=local_tz)
     now = datetime.now(timezone.utc)
-
     forecasts: list[dict] = []
-    for i, temp in enumerate(temps[:8]):
-        # Slots are at city-local 00:00, 03:00, ..., 21:00; convert to UTC.
-        target_ts = (local_day_start + timedelta(hours=i * 3)).astimezone(timezone.utc)
-        if drop_past and target_ts <= now:
+    for slot in slots:
+        if drop_past and slot["target_ts"] <= now:
             continue
         forecasts.append({
             "fetched_at": now,
-            "target_ts": target_ts,
-            "temperature_c": float(temp),
+            **slot,
+        })
+    return forecasts
+
+
+def _extract_slots(soup: BeautifulSoup) -> list[dict]:
+    """Pair UTC timestamps with the temperature, precipitation and condition
+    values for each 3-hour slot of the first (current-day) widget on the page.
+    """
+    timestamps = _extract_slot_timestamps(soup)
+    if not timestamps:
+        return []
+    temps = _extract_temps(soup)
+    precips = _extract_precipitations_per_slot(soup)
+    conditions = _extract_conditions_per_slot(soup)
+
+    out: list[dict] = []
+    n = min(len(timestamps), len(temps))
+    for i in range(n):
+        out.append({
+            "target_ts": timestamps[i],
+            "temperature_c": float(temps[i]),
             "precipitation_mm": float(precips[i]) if i < len(precips) else 0.0,
             "weather_main": conditions[i] if i < len(conditions) else None,
         })
-    return forecasts
+    return out
+
+
+def _extract_slot_timestamps(soup: BeautifulSoup) -> list[datetime]:
+    """Read the absolute UTC of each slot from `.widget-row-datetime-time`."""
+    out: list[datetime] = []
+    time_row = soup.select_one(".widget-row-datetime-time")
+    if time_row is None:
+        return out
+    for item in time_row.select(".row-item"):
+        # The "now" indicator is a top-level time-value without a wrapping
+        # `.row-item` with a `title` attribute. Real slots have both.
+        tv = item.find("time-value", attrs={"timestamp": True})
+        title = item.get("title")
+        if tv is None or not title:
+            continue
+        try:
+            ts_unix = int(tv["timestamp"])
+        except (ValueError, TypeError):
+            continue
+        out.append(datetime.fromtimestamp(ts_unix, tz=timezone.utc))
+    return out
 
 
 def _extract_temps(soup: BeautifulSoup) -> list[float]:
