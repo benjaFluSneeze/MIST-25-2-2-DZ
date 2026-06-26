@@ -14,7 +14,7 @@ COPY services/dashboard/app.py ./app.py
 COPY services/dashboard/home.py ./home.py
 COPY services/dashboard/theme.py ./theme.py
 COPY services/dashboard/common.py ./common.py
-COPY services/dashboard/pages ./pages
+COPY services/dashboard/_pages ./_pages
 COPY services/dashboard/.streamlit ./.streamlit
 
 EXPOSE 8501
