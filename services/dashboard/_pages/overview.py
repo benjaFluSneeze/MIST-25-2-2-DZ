@@ -11,8 +11,8 @@ from common import (
     source_ru,
 )
 from theme import (
-    ACCENT, ACCENT_LIGHT, ICONS, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT, RAIN,
-    WEATHER_COLORS, card_title, eyebrow, kpi_card, sidebar_status,
+    ACCENT, ACCENT_LIGHT, ICONS, MUTED, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT,
+    RAIN, STORM, WEATHER_COLORS, card_title, eyebrow, kpi_card, sidebar_status,
 )
 
 city = city_selector()
@@ -62,44 +62,66 @@ wind_sub = "сильный" if pd.notna(latest["wind_speed"]) and latest["wind_s
 
 c1, c2, c3, c4 = st.columns(4)
 c1.markdown(
-    kpi_card("Температура", temp_value, "°C", ICONS["sun"], accent="amber", sub=cond_sub),
+    kpi_card("Температура", temp_value, "°C", ICONS["sun"],
+             accent="amber", sub=cond_sub),  # amber accent: icon = ACCENT
     unsafe_allow_html=True,
 )
 c2.markdown(
-    kpi_card("Влажность", hum_value, "%", ICONS["droplet"], sub=hum_sub),
+    kpi_card("Влажность", hum_value, "%", ICONS["droplet"],
+             sub=hum_sub, icon_color=RAIN),
     unsafe_allow_html=True,
 )
 c3.markdown(
-    kpi_card("Ветер", wind_value, "м/с", ICONS["wind"], sub=wind_sub),
+    kpi_card("Ветер", wind_value, "м/с", ICONS["wind"],
+             sub=wind_sub, icon_color=PRIMARY),
     unsafe_allow_html=True,
 )
 c4.markdown(
-    kpi_card("Давление", pres_value, "hPa", ICONS["gauge"], sub="норма"),
+    kpi_card("Давление", pres_value, "hPa", ICONS["gauge"],
+             sub="норма", icon_color=STORM),
     unsafe_allow_html=True,
 )
 
 st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
 
 # --- Temperature chart in glass card ---
+# Legend chip on the right side of the title — matches mockup.
+top_source = df["Источник"].value_counts().idxmax()
+legend_chip = (
+    f'<span style="display:inline-flex; align-items:center; gap:7px; '
+    f'font-size:12px; color:{PRIMARY_LIGHT}; font-family:\'JetBrains Mono\',monospace;">'
+    f'<span style="width:18px; height:3px; border-radius:99px; background:{PRIMARY};">'
+    f'</span>{top_source}</span>'
+)
 st.markdown(
     '<div style="padding: 22px 24px 4px; border-radius: 18px;'
     'background: rgba(255,255,255,0.025);'
     'border: 1px solid rgba(148,163,184,0.1);'
     'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-    + card_title("Температура за неделю"),
+    + card_title("Температура за неделю", legend_chip),
     unsafe_allow_html=True,
 )
+# Use a single colour series — the mockup shows one cyan line, not a per-source split.
+# When mixing sources splits the y-values along the same timestamp into two traces,
+# the chart looks like a sawtooth; aggregate to a single line per hour first.
+df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
 fig_t = px.area(
-    df, x="ts", y="temperature_c", color="Источник",
-    labels={"ts": "Время (UTC)", "temperature_c": "°C"},
-    color_discrete_sequence=[PRIMARY, PRIMARY_DARK, ACCENT],
+    df_t, x="ts", y="temperature_c",
+    labels={"ts": "Время (UTC)", "temperature_c": "Температура, °C"},
+    color_discrete_sequence=[PRIMARY],
 )
-fig_t.update_traces(line=dict(width=2.4, shape="spline", smoothing=1.0),
-                     fillpattern=dict(shape=""))
-for tr in fig_t.data:
-    tr.update(fillcolor="rgba(110,197,214,0.18)")
-fig_t.update_layout(height=320, margin=dict(t=10, b=20, l=0, r=0),
-                     legend=dict(orientation="h", y=-0.18))
+fig_t.update_traces(
+    line=dict(width=2.4, color=PRIMARY, shape="spline", smoothing=1.0),
+    fillcolor="rgba(110,197,214,0.16)",
+)
+fig_t.update_layout(
+    height=320,
+    margin=dict(t=10, b=40, l=58, r=20),
+    showlegend=False,
+    xaxis_title=None,
+    yaxis_title=None,
+)
+fig_t.update_yaxes(ticksuffix=" °C")
 st.plotly_chart(fig_t, use_container_width=True)
 st.markdown("</div><div style='height: 18px;'></div>", unsafe_allow_html=True)
 
@@ -120,7 +142,12 @@ with col1:
         labels={"ts": "Время (UTC)", "precipitation_mm": "мм"},
     )
     fig_p.update_traces(marker_color=RAIN, marker_line_width=0)
-    fig_p.update_layout(height=300, margin=dict(t=10, b=20, l=0, r=0), bargap=0.05)
+    fig_p.update_layout(
+        height=300, margin=dict(t=10, b=40, l=50, r=20),
+        bargap=0.05,
+        xaxis_title=None, yaxis_title=None,
+    )
+    fig_p.update_yaxes(ticksuffix=" мм")
     st.plotly_chart(fig_p, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 

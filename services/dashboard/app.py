@@ -1,6 +1,7 @@
 import streamlit as st
 
-from theme import apply_theme
+from navigation import build_pages
+from theme import apply_theme, set_nav_pages
 
 st.set_page_config(
     page_title="WeatherML — Прогноз погоды",
@@ -9,16 +10,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-pages = [
-    st.Page("home.py", title="Главная", icon="🏠", default=True),
-    st.Page("_pages/overview.py", title="Обзор", icon="📊"),
-    st.Page("_pages/predictions.py", title="Прогноз", icon="🔮"),
-    st.Page("_pages/analytics.py", title="Аналитика", icon="📈"),
-    st.Page("_pages/data.py", title="Данные", icon="🗃️"),
-    st.Page("_pages/monitoring.py", title="Мониторинг", icon="🛠️"),
-]
+pages = build_pages()
+set_nav_pages(pages)  # so _sidebar_chrome can page_link them with url_path
 
 # Hide Streamlit's auto-nav — we render our own below the brand block.
 nav = st.navigation(pages, position="hidden")
-apply_theme()
+apply_theme(active_path=(nav.url_path or "").lstrip("/"))
 nav.run()

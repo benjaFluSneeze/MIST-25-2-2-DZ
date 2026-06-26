@@ -79,8 +79,21 @@ html, body, [class*="css"] {{
 [data-testid="stToolbar"] {{ display: none !important; }}
 [data-testid="stDecoration"] {{ display: none !important; }}
 [data-testid="stStatusWidget"] {{ display: none !important; }}
-[data-testid="stHeader"] {{ background: transparent !important; }}
+[data-testid="stHeader"] {{ background: transparent !important; height: 0 !important; }}
 .stDeployButton {{ display: none !important; }}
+
+/* — kill default top padding on main + sidebar empty chrome — */
+[data-testid="stMainBlockContainer"] {{
+    padding-top: 1.5rem !important;
+    padding-bottom: 2rem !important;
+    max-width: 1240px !important;
+}}
+[data-testid="stSidebarHeader"] {{
+    display: none !important;
+}}
+[data-testid="stSidebarContent"] {{
+    padding-top: 18px !important;
+}}
 
 /* — headings — */
 h1 {{
@@ -400,14 +413,14 @@ def _plotly_template() -> dict:
             gridcolor="rgba(148,163,184,0.09)",
             zerolinecolor="rgba(148,163,184,0.2)",
             linecolor=BORDER_BRIGHT,
-            tickfont=dict(family="JetBrains Mono, monospace", color=MUTED, size=11),
+            tickfont=dict(family="JetBrains Mono, monospace", color=TEXT_LOW, size=11),
             title_font=dict(color=TEXT_LOW, size=12),
         ),
         yaxis=dict(
             gridcolor="rgba(148,163,184,0.09)",
             zerolinecolor="rgba(148,163,184,0.2)",
             linecolor=BORDER_BRIGHT,
-            tickfont=dict(family="JetBrains Mono, monospace", color=MUTED, size=11),
+            tickfont=dict(family="JetBrains Mono, monospace", color=TEXT_LOW, size=11),
             title_font=dict(color=TEXT_LOW, size=12),
         ),
         legend=dict(
@@ -429,34 +442,44 @@ def _plotly_template() -> dict:
 _APPLIED = False
 
 
-def apply_theme():
-    """Inject CSS once per session and register the Plotly template."""
+def apply_theme(active_path: str = ""):
+    """Inject CSS once per session and register the Plotly template.
+
+    active_path — the URL slug of the page currently being run (e.g.
+    "overview", "predictions"). Used to mark the matching sidebar link
+    with a visible cyan bar + brighter background. Pass nav.url_path
+    from app.py.
+    """
     global _APPLIED
     st.markdown(_CSS, unsafe_allow_html=True)
     if not _APPLIED:
         pio.templates["weatherml"] = _plotly_template()
         pio.templates.default = "plotly_dark+weatherml"
         _APPLIED = True
-    _sidebar_chrome()
+    _sidebar_chrome(active_path)
 
 
-_NAV_PAGES = [
-    ("home.py",              "Главная",        ":material/home:"),
-    ("_pages/overview.py",    "Обзор города",   ":material/dashboard:"),
-    ("_pages/predictions.py", "Прогноз",        ":material/auto_awesome:"),
-    ("_pages/analytics.py",   "Аналитика",      ":material/show_chart:"),
-    ("_pages/data.py",        "Данные",         ":material/database:"),
-    ("_pages/monitoring.py",  "Мониторинг",     ":material/monitoring:"),
-]
+# Filled by set_nav_pages() in app.py — list of st.Page objects so the
+# sidebar's page_link can use their url_path instead of label-based URLs.
+_NAV_PAGES: list = []
 
 
-def _sidebar_chrome():
+def set_nav_pages(pages):
+    """app.py calls this once with the st.Page list from navigation.py."""
+    global _NAV_PAGES
+    _NAV_PAGES = pages
+
+
+def _sidebar_chrome(active_path: str = ""):
     """Brand block at the top of the sidebar, followed by our custom nav.
 
     Streamlit's auto-nav is disabled in app.py (position='hidden'), so we
     render everything ourselves into stSidebarUserContent — brand first,
     then page links, then any per-page controls the page adds, with the
     status pill anchored at the bottom by sidebar_status().
+
+    active_path is the URL slug ("overview" etc.) — when non-empty we
+    inject a CSS rule that paints a 3px cyan bar on the matching link.
     """
     st.sidebar.markdown(
 f"""<div style="display:flex; align-items:center; gap:11px; padding: 4px 0 16px 4px; border-bottom: 1px solid {BORDER}; margin-bottom: 12px;">
@@ -470,13 +493,38 @@ f"""<div style="display:flex; align-items:center; gap:11px; padding: 4px 0 16px 
 </div>""",
         unsafe_allow_html=True,
     )
-    for path, label, icon in _NAV_PAGES:
-        st.sidebar.page_link(path, label=label, icon=icon)
+    from navigation import NAV_ICONS  # avoids circular import at module load
+
+    for page in _NAV_PAGES:
+        st.sidebar.page_link(
+            page,
+            icon=NAV_ICONS.get(page.url_path, ":material/circle:"),
+        )
     # divider before per-page controls
     st.sidebar.markdown(
         f'<div style="height:1px; background:{BORDER}; margin:14px 0 12px;"></div>',
         unsafe_allow_html=True,
     )
+    # Active-link highlight — Streamlit doesn't reliably set aria-current
+    # on links from st.page_link, so we target by href slug from Python.
+    if active_path:
+        st.markdown(
+f"""<style>
+[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href="{active_path}"] {{
+    background: rgba(110,197,214,0.10) !important;
+    color: {TEXT} !important;
+}}
+[data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href="{active_path}"]::before {{
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px; bottom: 8px;
+    width: 3px;
+    border-radius: 0 99px 99px 0;
+    background: {PRIMARY};
+    box-shadow: 0 0 8px {PRIMARY};
+}}
+</style>""", unsafe_allow_html=True)
 
 
 def sidebar_status():
@@ -531,11 +579,13 @@ def city_color(name: str) -> str:
 
 
 def kpi_card(label: str, value: str, unit: str = "", icon_svg: str = "",
-             accent: str = "neutral", sub: str = "") -> str:
+             accent: str = "neutral", sub: str = "",
+             icon_color: str = "") -> str:
     """HTML for a KPI card matching the mockup spec.
 
     accent: "amber" | "rain" | "coral" | "neutral"
     icon_svg: full <svg>...</svg> string (lucide-style), no wrapper.
+    icon_color: explicit stroke colour for the icon (overrides accent default).
     """
     palettes = {
         "amber": (f"rgba(230,179,92,0.07)", f"rgba(230,179,92,0.22)",
@@ -546,9 +596,10 @@ def kpi_card(label: str, value: str, unit: str = "", icon_svg: str = "",
         "neutral": (CARD_BG, BORDER, TEXT_LOW, TEXT, TEXT_LOW, TEXT_LOW),
     }
     bg, border, label_c, value_c, unit_c, sub_c = palettes.get(accent, palettes["neutral"])
+    stroke = icon_color or value_c
     icon_html = (
         f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
-        f'stroke="{value_c}" stroke-width="2" stroke-linecap="round" '
+        f'stroke="{stroke}" stroke-width="2" stroke-linecap="round" '
         f'stroke-linejoin="round">{icon_svg}</svg>' if icon_svg else ""
     )
     icon_block = f"""<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
