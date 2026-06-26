@@ -12,7 +12,7 @@ from common import (
 )
 from theme import (
     ACCENT, ACCENT_LIGHT, ICONS, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT, RAIN,
-    WEATHER_COLORS, eyebrow, kpi_card, sidebar_status,
+    WEATHER_COLORS, card_title, eyebrow, kpi_card, sidebar_status,
 )
 
 city = city_selector()
@@ -86,7 +86,7 @@ st.markdown(
     'background: rgba(255,255,255,0.025);'
     'border: 1px solid rgba(148,163,184,0.1);'
     'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-    '<h3 style="margin: 0 0 4px; font-size: 16px;">Температура за неделю</h3>',
+    + card_title("Температура за неделю"),
     unsafe_allow_html=True,
 )
 fig_t = px.area(
@@ -94,7 +94,7 @@ fig_t = px.area(
     labels={"ts": "Время (UTC)", "temperature_c": "°C"},
     color_discrete_sequence=[PRIMARY, PRIMARY_DARK, ACCENT],
 )
-fig_t.update_traces(line=dict(width=2.4),
+fig_t.update_traces(line=dict(width=2.4, shape="spline", smoothing=1.0),
                      fillpattern=dict(shape=""))
 for tr in fig_t.data:
     tr.update(fillcolor="rgba(110,197,214,0.18)")
@@ -112,7 +112,7 @@ with col1:
         'background: rgba(255,255,255,0.025);'
         'border: 1px solid rgba(148,163,184,0.1);'
         'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-        '<h3 style="margin: 0 0 14px; font-size: 16px;">Осадки, мм</h3>',
+        + card_title("Осадки, мм"),
         unsafe_allow_html=True,
     )
     fig_p = px.bar(
@@ -130,7 +130,7 @@ with col2:
         'background: rgba(255,255,255,0.025);'
         'border: 1px solid rgba(148,163,184,0.1);'
         'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-        '<h3 style="margin: 0 0 14px; font-size: 16px;">Тип погоды · частоты</h3>',
+        + card_title("Тип погоды · частоты"),
         unsafe_allow_html=True,
     )
     counts = df["Тип погоды"].value_counts().reset_index()

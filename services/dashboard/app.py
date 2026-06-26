@@ -11,11 +11,11 @@ st.set_page_config(
 
 pages = [
     st.Page("home.py", title="Главная", icon="🏠", default=True),
-    st.Page("pages/overview.py", title="Обзор", icon="📊"),
-    st.Page("pages/predictions.py", title="Прогноз", icon="🔮"),
-    st.Page("pages/analytics.py", title="Аналитика", icon="📈"),
-    st.Page("pages/data.py", title="Данные", icon="🗃️"),
-    st.Page("pages/monitoring.py", title="Мониторинг", icon="🛠️"),
+    st.Page("_pages/overview.py", title="Обзор", icon="📊"),
+    st.Page("_pages/predictions.py", title="Прогноз", icon="🔮"),
+    st.Page("_pages/analytics.py", title="Аналитика", icon="📈"),
+    st.Page("_pages/data.py", title="Данные", icon="🗃️"),
+    st.Page("_pages/monitoring.py", title="Мониторинг", icon="🛠️"),
 ]
 
 # Hide Streamlit's auto-nav — we render our own below the brand block.

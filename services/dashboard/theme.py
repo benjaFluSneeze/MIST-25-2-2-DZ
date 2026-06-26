@@ -241,18 +241,113 @@ hr {{
     border-radius: 12px !important;
 }}
 
-/* — sidebar nav links (st.navigation links) — */
-[data-testid="stSidebarNav"] a {{
+/* — sidebar nav (our st.page_link items) — */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {{
+    position: relative;
     border-radius: 10px !important;
-    padding: 10px 12px !important;
+    padding: 9px 12px 9px 16px !important;
     color: {TEXT_LOW_LIGHT} !important;
     font-size: 14px !important;
+    font-weight: 500 !important;
+    background: transparent !important;
     transition: background 0.15s, color 0.15s !important;
 }}
-
-[data-testid="stSidebarNav"] a:hover {{
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {{
     background: rgba(255,255,255,0.04) !important;
     color: {TEXT} !important;
+}}
+/* Active link — cyan left bar + brighter text, no background fill */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"],
+[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {{
+    background: rgba(110,197,214,0.07) !important;
+    color: {TEXT} !important;
+    font-weight: 600 !important;
+}}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"]::before {{
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 99px;
+    background: {PRIMARY};
+}}
+/* Icon column inside the page link */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] [data-testid="stIconMaterial"],
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] span[data-testid="stIconMaterial"] {{
+    color: inherit !important;
+    font-size: 19px !important;
+    margin-right: 4px;
+}}
+
+/* — In-card section titles (h3 inside our glass cards) should be 16px,
+     NOT the giant gradient hero h3. Use the .card-title class. — */
+.card-title {{
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: {TEXT} !important;
+    letter-spacing: -.01em;
+    margin: 0 0 14px;
+}}
+.card-title-row {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}}
+.card-title-row .card-title {{ margin: 0; }}
+
+/* — Home cards (clickable feature cards on the landing page) — */
+.home-card {{
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    padding: 22px 20px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid rgba(148,163,184,0.12);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    cursor: pointer;
+    text-decoration: none !important;
+    color: {TEXT};
+    transition: transform .2s cubic-bezier(.4,0,.2,1), border-color .2s, background .2s;
+    height: 100%;
+}}
+.home-card:hover {{
+    transform: translateY(-5px);
+    border-color: rgba(110,197,214,0.4);
+    background: rgba(110,197,214,0.06);
+}}
+.home-card-icon {{
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+}}
+.home-card-title {{
+    font-weight: 600;
+    font-size: 15.5px;
+    margin-bottom: 6px;
+    color: {TEXT};
+}}
+.home-card-desc {{
+    font-size: 13px;
+    line-height: 1.5;
+    color: {TEXT_LOW};
+}}
+
+/* — Chip selector (analytics) — */
+.city-chip {{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px 5px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0 6px 6px 0;
 }}
 
 /* === Custom utility classes used by markdown blocks === */
@@ -346,12 +441,12 @@ def apply_theme():
 
 
 _NAV_PAGES = [
-    ("home.py",              "Главная",     "🏠"),
-    ("pages/overview.py",    "Обзор",       "📊"),
-    ("pages/predictions.py", "Прогноз",     "🔮"),
-    ("pages/analytics.py",   "Аналитика",   "📈"),
-    ("pages/data.py",        "Данные",      "🗃️"),
-    ("pages/monitoring.py",  "Мониторинг",  "🛠️"),
+    ("home.py",              "Главная",        ":material/home:"),
+    ("_pages/overview.py",    "Обзор города",   ":material/dashboard:"),
+    ("_pages/predictions.py", "Прогноз",        ":material/auto_awesome:"),
+    ("_pages/analytics.py",   "Аналитика",      ":material/show_chart:"),
+    ("_pages/data.py",        "Данные",         ":material/database:"),
+    ("_pages/monitoring.py",  "Мониторинг",     ":material/monitoring:"),
 ]
 
 
@@ -401,6 +496,38 @@ API online · v2.4.0
 def eyebrow(text: str):
     """Small uppercase cyan label above a page heading."""
     st.markdown(f'<div class="eyebrow">{text}</div>', unsafe_allow_html=True)
+
+
+def card_title(text: str, right_html: str = "") -> str:
+    """Markdown for an in-card title (16px / 600), optional right-side legend.
+
+    Use INSIDE a card opening div, before the chart/content. Returns an HTML
+    string — call st.markdown(card_title(...), unsafe_allow_html=True).
+    """
+    if right_html:
+        return (
+            f'<div class="card-title-row">'
+            f'<div class="card-title">{text}</div>'
+            f'{right_html}</div>'
+        )
+    return f'<div class="card-title">{text}</div>'
+
+
+# Solid colours assigned to specific cities for the analytics comparison
+# chips and lines — matches the design mockup's cityColors palette.
+CITY_COLORS = {
+    "Владивосток":   "#5b9fd4",
+    "Екатеринбург":  PRIMARY,       # #6ec5d6
+    "Казань":        "#8a7fd0",
+    "Москва":        ACCENT,        # #e6b35c
+    "Новосибирск":   SUCCESS,       # #5bbf9a
+    "Сочи":          CORAL,         # #e57a6a
+}
+
+
+def city_color(name: str) -> str:
+    """Return the chip/line colour for a city, falling back to cyan."""
+    return CITY_COLORS.get(name, PRIMARY)
 
 
 def kpi_card(label: str, value: str, unit: str = "", icon_svg: str = "",
