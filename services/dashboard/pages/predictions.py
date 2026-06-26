@@ -19,8 +19,8 @@ from common import (
 )
 from theme import (
     ACCENT, ACCENT_LIGHT, ACCENT_MUTED, ALERT, BORDER, CARD_BG, CORAL,
-    MUTED, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT, RAIN_LIGHT, SUCCESS,
-    TEXT, TEXT_LOW, TEXT_MID, WEATHER_COLORS, eyebrow,
+    ICONS, MUTED, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT, RAIN_LIGHT, SUCCESS,
+    TEXT, TEXT_LOW, TEXT_MID, WEATHER_COLORS, eyebrow, kpi_card, sidebar_status,
 )
 
 city = city_selector()
@@ -89,60 +89,20 @@ st.markdown(
 
 
 # --- KPI block ---
-def _kpi_card(label: str, value: str, unit: str, accent: str | None = None,
-              extra: str = "") -> str:
-    if accent == "amber":
-        bg = "rgba(230,179,92,0.07)"
-        border = "rgba(230,179,92,0.22)"
-        label_color = ACCENT_MUTED
-        value_color = ACCENT_LIGHT
-        unit_color = ACCENT_MUTED
-    elif accent == "rain":
-        bg = CARD_BG
-        border = BORDER
-        label_color = TEXT_LOW
-        value_color = RAIN_LIGHT
-        unit_color = TEXT_LOW
-    else:
-        bg = CARD_BG
-        border = BORDER
-        label_color = TEXT_LOW
-        value_color = TEXT
-        unit_color = TEXT_LOW
-    return f"""
-    <div style="padding: 18px 20px; border-radius: 16px;
-                background: {bg}; border: 1px solid {border};
-                backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">
-        <div style="font-size: 11px; letter-spacing: 0.06em;
-                    text-transform: uppercase; color: {label_color};
-                    font-weight: 600; margin-bottom: 12px;">{label}</div>
-        <div style="font-family: 'JetBrains Mono', monospace;
-                    font-size: 38px; font-weight: 600; color: {value_color};
-                    line-height: 1;">
-            {value}<span style="font-size: 18px; color: {unit_color};
-                                margin-left: 3px;">{unit}</span>
-        </div>
-        {extra}
-    </div>
-    """
-
-
 c1, c2, c3 = st.columns(3)
 c1.markdown(
-    _kpi_card(
+    kpi_card(
         f"Прогноз T° через +{horizon} ч",
-        f"{temp:.1f}" if temp is not None else "—",
-        "°C",
-        accent="amber",
+        f"{temp:.1f}" if temp is not None else "—", "°C",
+        ICONS["sun"], accent="amber",
     ),
     unsafe_allow_html=True,
 )
 c2.markdown(
-    _kpi_card(
+    kpi_card(
         "Вероятность дождя",
-        f"{p_rain*100:.0f}" if p_rain is not None else "—",
-        "%",
-        accent="rain",
+        f"{p_rain*100:.0f}" if p_rain is not None else "—", "%",
+        ICONS["droplet"], accent="rain",
     ),
     unsafe_allow_html=True,
 )
@@ -451,3 +411,5 @@ with col_fi:
     else:
         st.info("Появится после обучения моделей.")
     st.markdown("</div>", unsafe_allow_html=True)
+
+sidebar_status()

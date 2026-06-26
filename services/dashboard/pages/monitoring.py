@@ -18,7 +18,7 @@ def _source_label(name: str) -> str:
     return SOURCE_LABELS.get(name, source_ru(name))
 
 
-from theme import eyebrow
+from theme import eyebrow, sidebar_status
 
 eyebrow("Мониторинг")
 st.markdown('<h2 style="margin: 0 0 24px;">Статус источников данных</h2>',
@@ -73,3 +73,5 @@ df_show = df_show.rename(
     }
 )
 st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+sidebar_status()

@@ -342,8 +342,111 @@ def apply_theme():
         pio.templates["weatherml"] = _plotly_template()
         pio.templates.default = "plotly_dark+weatherml"
         _APPLIED = True
+    _sidebar_chrome()
+
+
+_NAV_PAGES = [
+    ("home.py",              "Главная",     "🏠"),
+    ("pages/overview.py",    "Обзор",       "📊"),
+    ("pages/predictions.py", "Прогноз",     "🔮"),
+    ("pages/analytics.py",   "Аналитика",   "📈"),
+    ("pages/data.py",        "Данные",      "🗃️"),
+    ("pages/monitoring.py",  "Мониторинг",  "🛠️"),
+]
+
+
+def _sidebar_chrome():
+    """Brand block at the top of the sidebar, followed by our custom nav.
+
+    Streamlit's auto-nav is disabled in app.py (position='hidden'), so we
+    render everything ourselves into stSidebarUserContent — brand first,
+    then page links, then any per-page controls the page adds, with the
+    status pill anchored at the bottom by sidebar_status().
+    """
+    st.sidebar.markdown(
+f"""<div style="display:flex; align-items:center; gap:11px; padding: 4px 0 16px 4px; border-bottom: 1px solid {BORDER}; margin-bottom: 12px;">
+<div style="width:34px; height:34px; border-radius:10px; background: linear-gradient(135deg,{PRIMARY},{PRIMARY_DARK}); display:flex; align-items:center; justify-content:center; box-shadow: 0 6px 18px rgba(78,163,184,.35);">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#06222a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1M12 20v1M5 12H4M20 12h-1M6.3 6.3l-.7-.7M18.4 18.4l-.7-.7M17.7 6.3l.7-.7M5.6 18.4l.7-.7"/></svg>
+</div>
+<div>
+<div style="font-weight:700; font-size:16px; letter-spacing:-.02em; line-height:1; color:{TEXT};">WeatherML</div>
+<div style="font-size:11px; color:{MUTED}; margin-top:3px; font-family:'JetBrains Mono',monospace;">прогноз погоды · ML</div>
+</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+    for path, label, icon in _NAV_PAGES:
+        st.sidebar.page_link(path, label=label, icon=icon)
+    # divider before per-page controls
+    st.sidebar.markdown(
+        f'<div style="height:1px; background:{BORDER}; margin:14px 0 12px;"></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def sidebar_status():
+    """Render the 'API online' pill at the bottom of the sidebar.
+
+    Called at the END of each page so it shows up underneath any controls.
+    """
+    st.sidebar.markdown(
+f"""<div style="margin-top:24px; padding-top:14px; border-top: 1px solid {BORDER}; display:flex; align-items:center; gap:8px; font-size:11px; color:{MUTED}; font-family:'JetBrains Mono',monospace;">
+<span style="width:7px; height:7px; border-radius:50%; background:{SUCCESS}; box-shadow: 0 0 8px {SUCCESS};"></span>
+API online · v2.4.0
+</div>""",
+        unsafe_allow_html=True,
+    )
 
 
 def eyebrow(text: str):
     """Small uppercase cyan label above a page heading."""
     st.markdown(f'<div class="eyebrow">{text}</div>', unsafe_allow_html=True)
+
+
+def kpi_card(label: str, value: str, unit: str = "", icon_svg: str = "",
+             accent: str = "neutral", sub: str = "") -> str:
+    """HTML for a KPI card matching the mockup spec.
+
+    accent: "amber" | "rain" | "coral" | "neutral"
+    icon_svg: full <svg>...</svg> string (lucide-style), no wrapper.
+    """
+    palettes = {
+        "amber": (f"rgba(230,179,92,0.07)", f"rgba(230,179,92,0.22)",
+                  ACCENT_MUTED, ACCENT_LIGHT, ACCENT_MUTED, "#a98c5a"),
+        "rain":  (CARD_BG, BORDER, TEXT_LOW, RAIN_LIGHT, TEXT_LOW, TEXT_LOW),
+        "coral": (f"rgba(229,122,106,0.08)", f"rgba(229,122,106,0.25)",
+                  "#e0a39a", CORAL, "#e0a39a", "#e0a39a"),
+        "neutral": (CARD_BG, BORDER, TEXT_LOW, TEXT, TEXT_LOW, TEXT_LOW),
+    }
+    bg, border, label_c, value_c, unit_c, sub_c = palettes.get(accent, palettes["neutral"])
+    icon_html = (
+        f'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
+        f'stroke="{value_c}" stroke-width="2" stroke-linecap="round" '
+        f'stroke-linejoin="round">{icon_svg}</svg>' if icon_svg else ""
+    )
+    icon_block = f"""<div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+{icon_html}<span style="font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:{label_c}; font-weight:600;">{label}</span>
+</div>""" if icon_svg else f"""<div style="font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:{label_c}; font-weight:600; margin-bottom:12px;">{label}</div>"""
+
+    sub_block = (
+        f'<div style="font-size:12px; color:{sub_c}; margin-top:8px;">{sub}</div>'
+        if sub else ""
+    )
+    return f"""<div style="padding:18px 20px; border-radius:16px; background:{bg}; border:1px solid {border}; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);">
+{icon_block}
+<div style="font-family:'JetBrains Mono',monospace; font-size:38px; font-weight:600; color:{value_c}; line-height:1;">
+{value}<span style="font-size:16px; color:{unit_c}; margin-left:3px;">{unit}</span>
+</div>
+{sub_block}
+</div>"""
+
+
+# Lucide-style icon paths (inner content, no <svg> wrapper)
+ICONS = {
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 3v1M12 20v1M5 12H4M20 12h-1M6.3 6.3l-.7-.7M18.4 18.4l-.7-.7M17.7 6.3l.7-.7M5.6 18.4l.7-.7"/>',
+    "droplet": '<path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 4.8 7 3c-.31 1.8-1.15 3.13-2.29 4.06S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A11 11 0 0 0 14 3c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a7 7 0 0 1-11.9 5"/>',
+    "wind": '<path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/>',
+    "gauge": '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+    "sparkles": '<path d="M9.9 15.5A2 2 0 0 0 8.5 14L4 12.7a.5.5 0 0 1 0-1L8.5 10A2 2 0 0 0 9.9 8.5L11.2 4a.5.5 0 0 1 1 0L13.5 8.5A2 2 0 0 0 14.9 10l4.5 1.3a.5.5 0 0 1 0 1L14.9 14a2 2 0 0 0-1.4 1.4L12.2 20a.5.5 0 0 1-1 0z"/>',
+    "cloud": '<path d="M17.5 19a4.5 4.5 0 1 0-1.9-8.6 6 6 0 1 0-11.3 3.1A4.5 4.5 0 0 0 6.5 19z"/>',
+}

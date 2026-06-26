@@ -8,7 +8,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-apply_theme()
 
 pages = [
     st.Page("home.py", title="Главная", icon="🏠", default=True),
@@ -19,4 +18,7 @@ pages = [
     st.Page("pages/monitoring.py", title="Мониторинг", icon="🛠️"),
 ]
 
-st.navigation(pages).run()
+# Hide Streamlit's auto-nav — we render our own below the brand block.
+nav = st.navigation(pages, position="hidden")
+apply_theme()
+nav.run()

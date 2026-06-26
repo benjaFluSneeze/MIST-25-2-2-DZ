@@ -3,7 +3,7 @@ import plotly.express as px
 import streamlit as st
 
 from common import city_ru, get_cities, get_observations
-from theme import eyebrow
+from theme import eyebrow, sidebar_status
 
 eyebrow("Аналитика")
 st.markdown('<h2 style="margin: 0 0 26px;">Сравнение городов</h2>',
@@ -86,3 +86,5 @@ else:
         }
     )
     st.dataframe(show, use_container_width=True, hide_index=True)
+
+sidebar_status()

@@ -9,7 +9,7 @@ from common import (
     get_observations,
     source_ru,
 )
-from theme import eyebrow
+from theme import eyebrow, sidebar_status
 
 city = city_selector()
 if city is None:
@@ -80,3 +80,5 @@ display = show.rename(
     ]
 ]
 st.dataframe(display, use_container_width=True, hide_index=True)
+
+sidebar_status()
