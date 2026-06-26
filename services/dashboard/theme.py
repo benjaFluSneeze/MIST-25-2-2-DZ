@@ -28,7 +28,9 @@ SUCCESS = "#5bbf9a"        # emerald-500, статус ок
 WARNING = "#e6b35c"        # = ACCENT
 ALERT = "#e57a6a"          # = CORAL
 
-# === Surfaces / chrome ===
+# === Surfaces / chrome ===  (values lifted from the design mockup —
+# don't crank these up "to make panels visible", that's not what's
+# being asked. They're meant to be quiet.)
 BG = "#080b12"             # почти чёрный с холодным подтоном
 CARD_BG = "rgba(255,255,255,0.025)"
 CARD_BG_ACTIVE = "rgba(255,255,255,0.04)"
@@ -258,11 +260,14 @@ hr {{
 }}
 
 /* — sidebar nav (our st.page_link items) — */
+/* Inactive items: muted text, regular weight. Active items get a
+   stronger colour + heavier weight via the per-render rule injected
+   by _sidebar_chrome(active_path=...). */
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {{
     position: relative;
     border-radius: 10px !important;
     padding: 9px 12px 9px 16px !important;
-    color: {TEXT_LOW_LIGHT} !important;
+    color: {MUTED} !important;
     font-size: 14px !important;
     font-weight: 500 !important;
     background: transparent !important;
@@ -270,24 +275,18 @@ hr {{
 }}
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {{
     background: rgba(255,255,255,0.04) !important;
-    color: {TEXT} !important;
+    color: {TEXT_MID} !important;
 }}
-/* Active link — cyan left bar + brighter text, no background fill */
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"],
-[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {{
-    background: rgba(110,197,214,0.07) !important;
-    color: {TEXT} !important;
+
+/* — sidebar widget labels ("Город", "Период" etc.) — muted because
+     they're just hints, the dropdown content itself is the headline. */
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"],
+[data-testid="stSidebar"] label {{
+    color: {MUTED} !important;
+    font-size: 11px !important;
+    text-transform: uppercase;
+    letter-spacing: .06em;
     font-weight: 600 !important;
-}}
-[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"]::before {{
-    content: "";
-    position: absolute;
-    left: 4px;
-    top: 9px;
-    bottom: 9px;
-    width: 3px;
-    border-radius: 99px;
-    background: {PRIMARY};
 }}
 /* Icon column inside the page link */
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] [data-testid="stIconMaterial"],
@@ -510,12 +509,14 @@ f"""<div style="display:flex; align-items:center; gap:11px; padding: 4px 0 16px 
     )
     # Active-link highlight — Streamlit doesn't reliably set aria-current
     # on links from st.page_link, so we target by href slug from Python.
+    # Active text is brighter + 600, inactive stays muted (defined in _CSS).
     if active_path:
         st.markdown(
 f"""<style>
 [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href="{active_path}"] {{
     background: rgba(110,197,214,0.10) !important;
     color: {TEXT} !important;
+    font-weight: 600 !important;
 }}
 [data-testid="stSidebar"] a[data-testid="stPageLink-NavLink"][href="{active_path}"]::before {{
     content: "";

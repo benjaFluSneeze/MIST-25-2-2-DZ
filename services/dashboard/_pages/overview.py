@@ -85,12 +85,13 @@ c4.markdown(
 st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
 
 # --- Temperature chart in glass card ---
-# Legend chip on the right side of the title — matches mockup.
+# Amber line + amber chip — temperature is associated with the warm
+# колор from the КПИ-плашка над чартом, не с холодным cyan.
 top_source = df["Источник"].value_counts().idxmax()
 legend_chip = (
     f'<span style="display:inline-flex; align-items:center; gap:7px; '
-    f'font-size:12px; color:{PRIMARY_LIGHT}; font-family:\'JetBrains Mono\',monospace;">'
-    f'<span style="width:18px; height:3px; border-radius:99px; background:{PRIMARY};">'
+    f'font-size:12px; color:{ACCENT_LIGHT}; font-family:\'JetBrains Mono\',monospace;">'
+    f'<span style="width:18px; height:3px; border-radius:99px; background:{ACCENT};">'
     f'</span>{top_source}</span>'
 )
 st.markdown(
@@ -101,21 +102,18 @@ st.markdown(
     + card_title("Температура за неделю", legend_chip),
     unsafe_allow_html=True,
 )
-# Resample to 3-hour means so the spline has ~56 points instead of ~168
-# and renders genuinely smooth (densely packed hourly noise was ruining
-# the curve even with smoothing=1.0).
-df_t = (df.set_index("ts")["temperature_c"]
-          .resample("3h").mean()
-          .interpolate()
-          .reset_index())
+# Keep every hourly point so hover still shows per-hour values; spline
+# smoothing=1.3 (plotly's max) is enough to make the line look smooth.
+df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
 fig_t = px.area(
     df_t, x="ts", y="temperature_c",
     labels={"ts": "Время (UTC)", "temperature_c": "Температура, °C"},
-    color_discrete_sequence=[PRIMARY],
+    color_discrete_sequence=[ACCENT],
 )
 fig_t.update_traces(
-    line=dict(width=2.6, color=PRIMARY, shape="spline", smoothing=1.3),
-    fillcolor="rgba(110,197,214,0.16)",
+    line=dict(width=2.6, color=ACCENT, shape="spline", smoothing=1.3),
+    fillcolor="rgba(230,179,92,0.14)",
+    hovertemplate="<b>%{y:.1f} °C</b><br>%{x|%d %b %H:%M}<extra></extra>",
 )
 fig_t.update_layout(
     height=320,
@@ -123,6 +121,7 @@ fig_t.update_layout(
     showlegend=False,
     xaxis_title=None,
     yaxis_title=None,
+    hovermode="x",
 )
 fig_t.update_yaxes(ticksuffix=" °C")
 st.plotly_chart(fig_t, use_container_width=True)
