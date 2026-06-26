@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -16,15 +17,17 @@ from common import (
     post_predict,
     post_predict_manual,
 )
-from theme import ACCENT, ACCENT_2, ACCENT_3, MUTED, SUCCESS, TEXT, WARNING
+from theme import (
+    ACCENT, ACCENT_LIGHT, ACCENT_MUTED, ALERT, BORDER, CARD_BG, CORAL,
+    MUTED, PRIMARY, PRIMARY_DARK, PRIMARY_LIGHT, RAIN_LIGHT, SUCCESS,
+    TEXT, TEXT_LOW, TEXT_MID, WEATHER_COLORS, eyebrow,
+)
 
 city = city_selector()
 if city is None:
     st.stop()
 
-st.title(f"🔮 Прогноз · {city_ru(city['name'])}")
-
-# --- Horizon slider in sidebar ---
+# --- Sidebar: horizon slider ---
 horizon_info = get_horizons()
 available_h = horizon_info.get("horizons") or [12]
 default_h = horizon_info.get("default") or 12
@@ -42,7 +45,7 @@ st.sidebar.caption(
     f"({len(available_h)} моделей × 3 задачи)."
 )
 
-# --- Auto prediction at the selected horizon ---
+# --- Predict ---
 with st.spinner("Считаем прогноз..."):
     try:
         pred = post_predict(city["id"], horizon)
@@ -54,65 +57,139 @@ temp = pred["predicted_temperature_c"]
 p_rain = pred["predicted_rain_probability"]
 target_ts = pd.to_datetime(pred["target_ts"], utc=True)
 
-# Render times in the city's own time zone — that way "12:00" on the chart
-# matches "12:00" on Gismeteo's page for the same city.
 try:
     from zoneinfo import ZoneInfo
     city_tz = ZoneInfo(city.get("timezone") or "UTC")
 except Exception:  # noqa: BLE001
     city_tz = None
 
+
 def _to_local(ts):
-    """Convert a tz-aware UTC pandas/datetime to the city's local tz."""
     if city_tz is None or ts is None:
         return ts
     if hasattr(ts, "tz_convert"):
         return ts.tz_convert(city_tz)
     return ts.astimezone(city_tz)
 
+
 tz_label = (city.get("timezone") or "UTC").split("/")[-1].replace("_", " ")
 target_ts_local = _to_local(target_ts)
 based_on_local = _to_local(pd.to_datetime(pred["based_on_ts"], utc=True))
 
+# --- Page heading ---
+eyebrow("Прогноз модели")
+st.markdown(
+    f'<h2 style="margin: 0 0 8px;">{city_ru(city["name"])} · +{horizon} ч</h2>'
+    f'<p style="font-size: 13.5px; color: #7b8798; margin: 0 0 22px;">'
+    f'Прогноз построен на основе наблюдения от '
+    f'<span style="color: #cbd5e1; font-family: \'JetBrains Mono\', monospace;">'
+    f'{based_on_local:%Y-%m-%d %H:%M}</span> ({tz_label})</p>',
+    unsafe_allow_html=True,
+)
+
+
+# --- KPI block ---
+def _kpi_card(label: str, value: str, unit: str, accent: str | None = None,
+              extra: str = "") -> str:
+    if accent == "amber":
+        bg = "rgba(230,179,92,0.07)"
+        border = "rgba(230,179,92,0.22)"
+        label_color = ACCENT_MUTED
+        value_color = ACCENT_LIGHT
+        unit_color = ACCENT_MUTED
+    elif accent == "rain":
+        bg = CARD_BG
+        border = BORDER
+        label_color = TEXT_LOW
+        value_color = RAIN_LIGHT
+        unit_color = TEXT_LOW
+    else:
+        bg = CARD_BG
+        border = BORDER
+        label_color = TEXT_LOW
+        value_color = TEXT
+        unit_color = TEXT_LOW
+    return f"""
+    <div style="padding: 18px 20px; border-radius: 16px;
+                background: {bg}; border: 1px solid {border};
+                backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">
+        <div style="font-size: 11px; letter-spacing: 0.06em;
+                    text-transform: uppercase; color: {label_color};
+                    font-weight: 600; margin-bottom: 12px;">{label}</div>
+        <div style="font-family: 'JetBrains Mono', monospace;
+                    font-size: 38px; font-weight: 600; color: {value_color};
+                    line-height: 1;">
+            {value}<span style="font-size: 18px; color: {unit_color};
+                                margin-left: 3px;">{unit}</span>
+        </div>
+        {extra}
+    </div>
+    """
+
+
 c1, c2, c3 = st.columns(3)
-c1.metric(
-    f"Прогноз температуры через +{horizon} ч, °C",
-    f"{temp:.1f}" if temp is not None else "—",
-    help=f"На {target_ts_local:%Y-%m-%d %H:%M} ({tz_label})",
+c1.markdown(
+    _kpi_card(
+        f"Прогноз T° через +{horizon} ч",
+        f"{temp:.1f}" if temp is not None else "—",
+        "°C",
+        accent="amber",
+    ),
+    unsafe_allow_html=True,
 )
-c2.metric("Вероятность дождя", f"{p_rain*100:.0f}%" if p_rain is not None else "—")
-c3.metric("Тип погоды", condition_ru(pred["predicted_condition"]))
-
-st.caption(
-    f"Прогноз построен на основе наблюдения от {based_on_local:%Y-%m-%d %H:%M} "
-    f"({tz_label})"
+c2.markdown(
+    _kpi_card(
+        "Вероятность дождя",
+        f"{p_rain*100:.0f}" if p_rain is not None else "—",
+        "%",
+        accent="rain",
+    ),
+    unsafe_allow_html=True,
+)
+cond = condition_ru(pred["predicted_condition"])
+cond_color = WEATHER_COLORS.get(cond, TEXT_MID)
+c3.markdown(
+    f"""
+    <div style="padding: 18px 20px; border-radius: 16px;
+                background: {CARD_BG}; border: 1px solid {BORDER};
+                backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">
+        <div style="font-size: 11px; letter-spacing: 0.06em;
+                    text-transform: uppercase; color: {TEXT_LOW};
+                    font-weight: 600; margin-bottom: 12px;">Тип погоды</div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 14px; height: 14px; border-radius: 4px;
+                         background: {cond_color};"></span>
+            <span style="font-size: 30px; font-weight: 700;
+                         letter-spacing: -0.02em;">{cond}</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------------------------
-# Chart: history (last 48h) + our prediction + Gismeteo curve for tomorrow
-# ---------------------------------------------------------------------------
-st.divider()
-st.subheader("Наш прогноз vs официальный (Gismeteo)")
+st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 
+# --- Main forecast chart ---
 obs = get_observations(city["id"], hours=48, source="open_meteo")
 gismeteo = get_external_forecasts(city["id"], limit=60)
-
 now_utc = pd.Timestamp.now(tz="UTC")
-# Window the chart shows by default: last 48 h of history + a bit past the
-# furthest Gismeteo/our slot. Pads the autoscale so the chart isn't dragged
-# by ancient leftover rows from older parser versions.
 chart_start = now_utc - pd.Timedelta(hours=48)
 chart_end = max(now_utc + pd.Timedelta(hours=36), target_ts + pd.Timedelta(hours=3))
+
+st.markdown(
+    '<div style="padding: 22px 24px 12px; border-radius: 18px;'
+    'background: rgba(255,255,255,0.025);'
+    'border: 1px solid rgba(148,163,184,0.1);'
+    'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
+    '<h3 style="margin: 0 0 16px;">Наш прогноз vs официальный (Gismeteo)</h3>',
+    unsafe_allow_html=True,
+)
 
 fig = go.Figure()
 
 if obs:
     df_obs = pd.DataFrame(obs)
     df_obs["ts"] = pd.to_datetime(df_obs["ts"], utc=True)
-    # Open-Meteo's "recent" endpoint also returns the next ~24 h as forecast
-    # rows alongside real history. Drop anything in the future so the grey
-    # "history" line ends sharply at "now" and our pink dot lives in the
-    # genuinely-unknown area to its right.
     df_obs = df_obs[df_obs["ts"] <= now_utc].sort_values("ts")
     if not df_obs.empty:
         x_obs = df_obs["ts"].dt.tz_convert(city_tz) if city_tz else df_obs["ts"]
@@ -120,108 +197,108 @@ if obs:
             x=x_obs, y=df_obs["temperature_c"],
             mode="lines",
             name="История (факт)",
-            line=dict(color=MUTED, width=2),
+            line=dict(color="#7b8798", width=2),
         ))
 
-# Gismeteo line — only the most recent fetch (latest fetched_at per target_ts),
-# and only slots still relevant (future or up to ~3h in the past).
 gismeteo_target_at_horizon: float | None = None
-df_g_visible = None
 if gismeteo:
     df_g = pd.DataFrame(gismeteo)
     df_g["target_ts"] = pd.to_datetime(df_g["target_ts"], utc=True)
     df_g["fetched_at"] = pd.to_datetime(df_g["fetched_at"], utc=True)
-    # Drop ancient leftovers from earlier parser versions and other stale rows.
     df_g = df_g[df_g["target_ts"] >= now_utc - pd.Timedelta(hours=3)]
-    # Keep only the latest fetch per target_ts (de-dupe).
     df_g = df_g.sort_values("fetched_at").drop_duplicates("target_ts", keep="last")
     df_g = df_g.sort_values("target_ts").reset_index(drop=True)
     if not df_g.empty:
-        df_g_visible = df_g
         x_g = df_g["target_ts"].dt.tz_convert(city_tz) if city_tz else df_g["target_ts"]
         fig.add_trace(go.Scatter(
             x=x_g, y=df_g["temperature_c"],
             mode="lines+markers",
-            name="Gismeteo (прогноз)",
-            line=dict(color=WARNING, width=2.5, dash="dot"),
-            marker=dict(size=8, color=WARNING),
+            name="Gismeteo (на завтра)",
+            line=dict(color=ACCENT, width=2.2, dash="dot"),
+            marker=dict(size=7, color=ACCENT),
         ))
-        # find Gismeteo value at the closest target_ts to our prediction
         deltas = (df_g["target_ts"] - target_ts).abs()
         idx = deltas.idxmin()
         if deltas.loc[idx] <= pd.Timedelta(hours=2):
             gismeteo_target_at_horizon = float(df_g.loc[idx, "temperature_c"])
 
-# Our prediction as a single dot
 if temp is not None:
     fig.add_trace(go.Scatter(
         x=[target_ts_local if city_tz else target_ts], y=[temp],
         mode="markers",
         name=f"Наш прогноз (+{horizon} ч)",
-        marker=dict(size=16, color=ACCENT_3,
-                    line=dict(width=2, color=TEXT)),
+        marker=dict(size=16, color=CORAL,
+                    line=dict(width=2, color="#0e131d")),
     ))
 
 fig.update_layout(
-    height=420,
-    margin=dict(t=30, b=30),
+    height=380,
+    margin=dict(t=10, b=30, l=0, r=0),
     xaxis_title=f"Время ({tz_label})" if city_tz else "Время (UTC)",
     yaxis_title="Температура, °C",
-    legend=dict(orientation="h", y=-0.25),
+    legend=dict(orientation="h", y=-0.22),
 )
-# Force the visible window so Plotly doesn't autoscale to any stale outliers.
 chart_start_x = chart_start.tz_convert(city_tz) if city_tz else chart_start
 chart_end_x = chart_end.tz_convert(city_tz) if city_tz else chart_end
 fig.update_xaxes(range=[chart_start_x, chart_end_x])
 st.plotly_chart(fig, use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# Side-by-side KPI: ours vs Gismeteo at the same target time
+# --- Comparison KPI row (when both forecasts exist) ---
 if temp is not None and gismeteo_target_at_horizon is not None:
     diff = temp - gismeteo_target_at_horizon
     abs_diff = abs(diff)
     if abs_diff <= 1.5:
-        badge_color = SUCCESS
-        badge_text = "Прогнозы согласуются"
+        delta_color = SUCCESS
     elif abs_diff <= 3.5:
-        badge_color = WARNING
-        badge_text = "Умеренное расхождение"
+        delta_color = ACCENT
     else:
-        badge_color = ACCENT_3
-        badge_text = "Сильное расхождение"
-    c1, c2, c3 = st.columns(3)
-    c1.metric(f"Наш прогноз (+{horizon} ч), °C", f"{temp:.1f}")
-    c2.metric("Gismeteo на это же время, °C", f"{gismeteo_target_at_horizon:.1f}")
-    c3.metric("Разница", f"{diff:+.1f} °C")
+        delta_color = ALERT
     st.markdown(
         f"""
-        <div style="padding: 8px 14px; background: {badge_color}22;
-                    border: 1px solid {badge_color}; border-radius: 8px;
-                    color: {badge_color}; font-weight: 500; display: inline-block;">
-            ● {badge_text}
+        <div style="margin-top: 18px; padding: 22px 24px;
+                    border-radius: 18px;
+                    background: rgba(255,255,255,0.025);
+                    border: 1px solid rgba(148,163,184,0.1);
+                    display: grid;
+                    grid-template-columns: 1fr auto 1fr auto 1fr;
+                    gap: 18px; align-items: center;">
+            <div style="text-align: center;">
+                <div style="font-size: 12px; color: #7b8798; margin-bottom: 8px;">Наш прогноз</div>
+                <div style="font-family: 'JetBrains Mono', monospace;
+                            font-size: 30px; font-weight: 600; color: {CORAL};">
+                    {temp:.1f}°C
+                </div>
+            </div>
+            <div style="width: 1px; height: 46px; background: rgba(148,163,184,0.14);"></div>
+            <div style="text-align: center;">
+                <div style="font-size: 12px; color: #7b8798; margin-bottom: 8px;">Gismeteo</div>
+                <div style="font-family: 'JetBrains Mono', monospace;
+                            font-size: 30px; font-weight: 600; color: {ACCENT};">
+                    {gismeteo_target_at_horizon:.1f}°C
+                </div>
+            </div>
+            <div style="width: 1px; height: 46px; background: rgba(148,163,184,0.14);"></div>
+            <div style="text-align: center;">
+                <div style="font-size: 12px; color: #7b8798; margin-bottom: 8px;">Δ расхождение</div>
+                <div style="font-family: 'JetBrains Mono', monospace;
+                            font-size: 30px; font-weight: 600; color: {delta_color};">
+                    {diff:+.1f}°C
+                </div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-elif gismeteo:
-    st.info(
-        "Прогнозы Gismeteo есть, но ни один не совпадает по времени "
-        "с нашим выбранным горизонтом — слайдер промахнулся мимо его 3-часовой сетки."
-    )
-else:
-    st.info(
-        "Прогнозов от Gismeteo пока нет в базе. Подождите ближайший "
-        "запуск сборщика (раз в 6 часов) или перезапустите ingestor."
-    )
 
-# ---------------------------------------------------------------------------
-# What-if form
-# ---------------------------------------------------------------------------
-st.divider()
-st.subheader("🧪 Что если: задайте свои условия")
-st.caption(
-    "Введите текущие условия — модель использует их вместо последнего "
-    "наблюдения и пересчитает прогноз. История за прошлые часы берётся "
-    "из базы данных города."
+st.markdown("<div style='height: 26px;'></div>", unsafe_allow_html=True)
+
+# --- What-if form ---
+st.markdown(
+    '<h3 style="margin: 0 0 6px;">Что если…</h3>'
+    '<p style="font-size: 13px; color: #7b8798; margin: 0 0 18px;">'
+    'Подставьте свои значения и посмотрите как изменится прогноз модели.</p>',
+    unsafe_allow_html=True,
 )
 
 obs_recent = get_observations(city["id"], hours=2, source="open_meteo")
@@ -229,34 +306,20 @@ defaults = obs_recent[-1] if obs_recent else {}
 
 with st.form("manual_predict"):
     f1, f2, f3 = st.columns(3)
-    in_temp = f1.number_input(
-        "Температура, °C", -60.0, 55.0,
-        float(defaults.get("temperature_c") or 15.0), 0.5,
-    )
-    in_humidity = f2.number_input(
-        "Влажность, %", 0.0, 100.0,
-        float(defaults.get("humidity") or 60.0), 1.0,
-    )
-    in_pressure = f3.number_input(
-        "Давление, hPa", 900.0, 1080.0,
-        float(defaults.get("pressure_hpa") or 1013.0), 1.0,
-    )
-
+    in_temp = f1.number_input("Температура, °C", -60.0, 55.0,
+                               float(defaults.get("temperature_c") or 15.0), 0.5)
+    in_humidity = f2.number_input("Влажность, %", 0.0, 100.0,
+                                   float(defaults.get("humidity") or 60.0), 1.0)
+    in_pressure = f3.number_input("Давление, hPa", 900.0, 1080.0,
+                                   float(defaults.get("pressure_hpa") or 1013.0), 1.0)
     f4, f5, f6 = st.columns(3)
-    in_wind = f4.number_input(
-        "Ветер, м/с", 0.0, 60.0,
-        float(defaults.get("wind_speed") or 3.0), 0.5,
-    )
-    in_cloud = f5.number_input(
-        "Облачность, %", 0.0, 100.0,
-        float(defaults.get("cloud_cover") or 50.0), 5.0,
-    )
-    in_precip = f6.number_input(
-        "Осадки, мм", 0.0, 100.0,
-        float(defaults.get("precipitation_mm") or 0.0), 0.1,
-    )
-
-    submitted = st.form_submit_button("Посчитать прогноз")
+    in_wind = f4.number_input("Ветер, м/с", 0.0, 60.0,
+                               float(defaults.get("wind_speed") or 3.0), 0.5)
+    in_cloud = f5.number_input("Облачность, %", 0.0, 100.0,
+                                float(defaults.get("cloud_cover") or 50.0), 5.0)
+    in_precip = f6.number_input("Осадки, мм", 0.0, 100.0,
+                                 float(defaults.get("precipitation_mm") or 0.0), 0.1)
+    submitted = st.form_submit_button("✨ Рассчитать прогноз")
 
 if submitted:
     payload = {
@@ -274,114 +337,117 @@ if submitted:
     except Exception as e:  # noqa: BLE001
         st.error(f"Не удалось посчитать прогноз: {e}")
     else:
-        m1, m2, m3 = st.columns(3)
         mt = manual["predicted_temperature_c"]
         mp = manual["predicted_rain_probability"]
-        m1.metric(
-            "Прогноз температуры, °C",
-            f"{mt:.1f}" if mt is not None else "—",
-            delta=f"{(mt - temp):+.1f} к авто-прогнозу" if mt is not None and temp is not None else None,
-        )
-        m2.metric("Вероятность дождя", f"{mp*100:.0f}%" if mp is not None else "—")
-        m3.metric("Тип погоды", condition_ru(manual["predicted_condition"]))
+        mc = condition_ru(manual["predicted_condition"])
+        delta = f"{(mt - temp):+.1f} к авто" if mt is not None and temp is not None else None
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Прогноз T°, °C", f"{mt:.1f}" if mt is not None else "—", delta)
+        m2.metric("P(дождь)", f"{mp*100:.0f}%" if mp is not None else "—")
+        m3.metric("Тип погоды", mc)
 
-# ---------------------------------------------------------------------------
-# CV metrics
-# ---------------------------------------------------------------------------
-st.divider()
-st.subheader(f"Качество модели на горизонте +{horizon} ч (кросс-валидация)")
+st.markdown("<div style='height: 26px;'></div>", unsafe_allow_html=True)
+
+# --- CV metrics ---
 try:
     metrics = get_metrics()
 except Exception:  # noqa: BLE001
     metrics = {}
 
-if metrics:
-    version = metrics.get("model_version", "—")
-    trained_at = metrics.get("trained_at", "—")
-    st.caption(f"Версия модели: `{version}` · обучена: {trained_at}")
+col_cv, col_fi = st.columns([1, 1])
 
-    h_str = str(horizon)
-    t = (metrics.get("temperature", {}).get("horizons") or {}).get(h_str, {})
-    r = (metrics.get("rain", {}).get("horizons") or {}).get(h_str, {})
-    cnd = (metrics.get("condition", {}).get("horizons") or {}).get(h_str, {})
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric(
-        "Темп.: средняя ошибка, °C",
-        f"{t.get('cv_mae_mean', float('nan')):.2f}" if t else "—",
-        help=f"Naive baseline: {t.get('naive_mae', 0):.2f} °C" if t else None,
+with col_cv:
+    st.markdown(
+        '<div style="padding: 22px 24px; border-radius: 18px;'
+        'background: rgba(255,255,255,0.025);'
+        'border: 1px solid rgba(148,163,184,0.1);">'
+        '<h3 style="font-size: 15px; margin: 0 0 16px;">Метрики кросс-валидации</h3>',
+        unsafe_allow_html=True,
     )
-    c2.metric(
-        "Дождь: точность",
-        f"{r.get('cv_accuracy_mean', float('nan'))*100:.1f}%" if r else "—",
-        help=f"Naive baseline: {r.get('naive_accuracy', 0)*100:.1f}%" if r else None,
-    )
-    c3.metric(
-        "Тип погоды: точность",
-        f"{cnd.get('cv_accuracy_mean', float('nan'))*100:.1f}%" if cnd else "—",
-        help=f"Naive baseline: {cnd.get('naive_accuracy', 0)*100:.1f}%" if cnd else None,
-    )
+    if metrics:
+        h_str = str(horizon)
+        t_m = (metrics.get("temperature", {}).get("horizons") or {}).get(h_str, {})
+        r_m = (metrics.get("rain", {}).get("horizons") or {}).get(h_str, {})
+        cnd_m = (metrics.get("condition", {}).get("horizons") or {}).get(h_str, {})
+        version = metrics.get("model_version", "—")
+        st.caption(f"Версия модели: `{version}`")
 
-    # MAE-vs-horizon mini-chart so the user sees how the curves look across all 8 models
-    temp_horizons = (metrics.get("temperature", {}).get("horizons") or {})
-    if len(temp_horizons) > 1:
-        h_rows = []
-        for h_key, met in temp_horizons.items():
-            h_rows.append({
-                "Горизонт, ч": int(h_key),
-                "MAE модели": met.get("cv_mae_mean"),
-                "MAE naive": met.get("naive_mae"),
-            })
-        df_h = pd.DataFrame(h_rows).sort_values("Горизонт, ч")
-        fig_h = go.Figure()
-        fig_h.add_trace(go.Scatter(
-            x=df_h["Горизонт, ч"], y=df_h["MAE naive"],
-            mode="lines+markers", name="Naive (T(t+H) = T(t))",
-            line=dict(color=MUTED, dash="dash"),
-        ))
-        fig_h.add_trace(go.Scatter(
-            x=df_h["Горизонт, ч"], y=df_h["MAE модели"],
-            mode="lines+markers", name="CatBoost (наша модель)",
-            line=dict(color=ACCENT, width=2.5),
-        ))
-        fig_h.add_vline(
-            x=horizon, line_dash="dot", line_color=ACCENT_2,
-            annotation_text=f"+{horizon} ч (сейчас)",
-            annotation_position="top right",
-        )
-        fig_h.update_layout(
-            height=320, margin=dict(t=30, b=20),
-            xaxis_title="Горизонт прогноза, ч",
-            yaxis_title="MAE, °C",
-            legend=dict(orientation="h", y=-0.3),
-        )
-        st.plotly_chart(fig_h, use_container_width=True)
-else:
-    st.info("Метрики появятся после обучения моделей (см. README).")
+        items = [
+            ("T° CV-MAE", f"{t_m.get('cv_mae_mean', float('nan')):.2f} °C" if t_m else "—",
+             ACCENT, f"naive: {t_m.get('naive_mae', 0):.2f}" if t_m else ""),
+            ("Дождь CV-Acc",
+             f"{r_m.get('cv_accuracy_mean', 0)*100:.1f}%" if r_m else "—",
+             RAIN_LIGHT, f"F1: {r_m.get('cv_f1_mean', 0):.2f}" if r_m else ""),
+            ("Тип погоды Acc",
+             f"{cnd_m.get('cv_accuracy_mean', 0)*100:.1f}%" if cnd_m else "—",
+             PRIMARY, f"F1: {cnd_m.get('cv_macro_f1_mean', 0):.2f}" if cnd_m else ""),
+            ("Горизонт",
+             f"+{horizon} ч",
+             TEXT_LOW, ""),
+        ]
+        cols = st.columns(2)
+        for i, (label, val, clr, sub) in enumerate(items):
+            col = cols[i % 2]
+            col.markdown(
+                f"""
+                <div style="padding: 14px 16px; border-radius: 12px;
+                            background: rgba(255,255,255,0.025);
+                            border: 1px solid rgba(148,163,184,0.1);
+                            margin-bottom: 10px;">
+                    <div style="font-size: 11px; color: #7b8798;
+                                margin-bottom: 6px;">{label}</div>
+                    <div style="font-family: 'JetBrains Mono', monospace;
+                                font-size: 20px; font-weight: 600; color: {clr};">{val}</div>
+                    <div style="font-size: 10.5px; color: #5b6675;
+                                margin-top: 4px; font-family: 'JetBrains Mono', monospace;">
+                        {sub}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    else:
+        st.info("Метрики появятся после обучения моделей.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------------
-# Feature importance for the currently selected horizon
-# ---------------------------------------------------------------------------
-st.subheader("Важность признаков (модель температуры)")
-fi = get_feature_importance("temperature", horizon)
-if fi:
-    descriptions = (metrics or {}).get("feature_descriptions", {})
-    df_fi = pd.DataFrame(fi).head(15)
-    df_fi["Описание"] = df_fi["feature"].map(lambda f: descriptions.get(f, f))
-    df_fi = df_fi.rename(columns={"feature": "Признак", "importance": "Важность"})
-    fig = go.Figure(go.Bar(
-        x=df_fi["Важность"], y=df_fi["Признак"], orientation="h",
-        marker_color=ACCENT,
-        hovertext=df_fi["Описание"], hoverinfo="y+x+text",
-    ))
-    fig.update_layout(height=450, margin=dict(t=30, b=20),
-                      yaxis=dict(autorange="reversed"),
-                      xaxis_title="Важность", yaxis_title="Признак")
-    st.plotly_chart(fig, use_container_width=True)
-    with st.expander("Расшифровка признаков"):
-        st.dataframe(
-            df_fi[["Признак", "Описание", "Важность"]],
-            use_container_width=True, hide_index=True,
-        )
-else:
-    st.info("Важность признаков появится после обучения моделей.")
+with col_fi:
+    st.markdown(
+        '<div style="padding: 22px 24px; border-radius: 18px;'
+        'background: rgba(255,255,255,0.025);'
+        'border: 1px solid rgba(148,163,184,0.1);">'
+        '<h3 style="font-size: 15px; margin: 0 0 16px;">Важность признаков</h3>',
+        unsafe_allow_html=True,
+    )
+    fi = get_feature_importance("temperature", horizon)
+    if fi:
+        descriptions = (metrics or {}).get("feature_descriptions", {})
+        df_fi = pd.DataFrame(fi).head(10)
+        df_fi["Описание"] = df_fi["feature"].map(lambda f: descriptions.get(f, f))
+        max_imp = df_fi["importance"].max() if not df_fi.empty else 1
+        for _, row in df_fi.iterrows():
+            pct = (row["importance"] / max_imp * 100) if max_imp else 0
+            st.markdown(
+                f"""
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between;
+                                font-size: 12.5px; margin-bottom: 5px;">
+                        <span style="color: #cbd5e1;
+                                     font-family: 'JetBrains Mono', monospace;">
+                            {row["feature"]}</span>
+                        <span style="color: #7b8798;
+                                     font-family: 'JetBrains Mono', monospace;">
+                            {row["importance"]:.1f}</span>
+                    </div>
+                    <div style="height: 7px; border-radius: 99px;
+                                background: rgba(148,163,184,0.1); overflow: hidden;">
+                        <div style="height: 100%; width: {pct:.1f}%;
+                                    border-radius: 99px;
+                                    background: linear-gradient(90deg, {PRIMARY_DARK}, {PRIMARY});">
+                        </div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    else:
+        st.info("Появится после обучения моделей.")
+    st.markdown("</div>", unsafe_allow_html=True)

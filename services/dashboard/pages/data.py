@@ -9,12 +9,17 @@ from common import (
     get_observations,
     source_ru,
 )
+from theme import eyebrow
 
 city = city_selector()
 if city is None:
     st.stop()
 
-st.title(f"🗃️ Данные · {city_ru(city['name'])}")
+eyebrow("Сырые данные")
+st.markdown(
+    f'<h2 style="margin: 0 0 22px;">Наблюдения · {city_ru(city["name"])}</h2>',
+    unsafe_allow_html=True,
+)
 
 hours = st.sidebar.selectbox(
     "Период",

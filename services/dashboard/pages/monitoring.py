@@ -18,7 +18,11 @@ def _source_label(name: str) -> str:
     return SOURCE_LABELS.get(name, source_ru(name))
 
 
-st.title("🛠️ Мониторинг")
+from theme import eyebrow
+
+eyebrow("Мониторинг")
+st.markdown('<h2 style="margin: 0 0 24px;">Статус источников данных</h2>',
+            unsafe_allow_html=True)
 
 try:
     runs = get_ingest_runs(limit=50)

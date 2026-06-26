@@ -3,8 +3,11 @@ import plotly.express as px
 import streamlit as st
 
 from common import city_ru, get_cities, get_observations
+from theme import eyebrow
 
-st.title("📈 Аналитика")
+eyebrow("Аналитика")
+st.markdown('<h2 style="margin: 0 0 26px;">Сравнение городов</h2>',
+            unsafe_allow_html=True)
 
 try:
     cities = get_cities()
