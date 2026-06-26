@@ -84,9 +84,9 @@ c4.markdown(
 
 st.markdown("<div style='height: 22px;'></div>", unsafe_allow_html=True)
 
-# --- Temperature chart in glass card ---
-# Amber line + amber chip — temperature is associated with the warm
-# колор from the КПИ-плашка над чартом, не с холодным cyan.
+# --- Temperature chart in a real bordered container ---
+# (st.container(border=True) — markdown <div> hacks don't work because
+# Streamlit renders plotly_chart as a sibling block, not inside our div.)
 top_source = df["Источник"].value_counts().idxmax()
 legend_chip = (
     f'<span style="display:inline-flex; align-items:center; gap:7px; '
@@ -94,135 +94,106 @@ legend_chip = (
     f'<span style="width:18px; height:3px; border-radius:99px; background:{ACCENT};">'
     f'</span>{top_source}</span>'
 )
-st.markdown(
-    '<div style="padding: 22px 24px 4px; border-radius: 18px;'
-    'background: rgba(255,255,255,0.025);'
-    'border: 1px solid rgba(148,163,184,0.1);'
-    'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-    + card_title("Температура за неделю", legend_chip),
-    unsafe_allow_html=True,
-)
-# Keep every hourly point so hover still shows per-hour values; spline
-# smoothing=1.3 (plotly's max) is enough to make the line look smooth.
-df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
-fig_t = px.area(
-    df_t, x="ts", y="temperature_c",
-    labels={"ts": "Время (UTC)", "temperature_c": "Температура, °C"},
-    color_discrete_sequence=[ACCENT],
-)
-fig_t.update_traces(
-    line=dict(width=2.6, color=ACCENT, shape="spline", smoothing=1.3),
-    fillcolor="rgba(230,179,92,0.14)",
-    hovertemplate="<b>%{y:.1f} °C</b><br>%{x|%d %b %H:%M}<extra></extra>",
-)
-fig_t.update_layout(
-    height=320,
-    margin=dict(t=10, b=40, l=58, r=20),
-    showlegend=False,
-    xaxis_title=None,
-    yaxis_title=None,
-    hovermode="x",
-)
-fig_t.update_yaxes(ticksuffix=" °C")
-st.plotly_chart(fig_t, use_container_width=True)
-st.markdown("</div><div style='height: 18px;'></div>", unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown(card_title("Температура за неделю", legend_chip),
+                unsafe_allow_html=True)
+    df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
+    fig_t = px.area(
+        df_t, x="ts", y="temperature_c",
+        labels={"ts": "Время (UTC)", "temperature_c": "Температура, °C"},
+        color_discrete_sequence=[ACCENT],
+    )
+    fig_t.update_traces(
+        line=dict(width=2.6, color=ACCENT, shape="spline", smoothing=1.3),
+        fillcolor="rgba(230,179,92,0.14)",
+        hovertemplate="<b>%{y:.1f} °C</b><br>%{x|%d %b %H:%M}<extra></extra>",
+    )
+    fig_t.update_layout(
+        height=320,
+        margin=dict(t=10, b=40, l=58, r=20),
+        showlegend=False,
+        xaxis_title=None, yaxis_title=None,
+        hovermode="x",
+    )
+    fig_t.update_yaxes(ticksuffix=" °C")
+    st.plotly_chart(fig_t, use_container_width=True)
+
+st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
 
 # --- Bottom row: precipitation + pie ---
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown(
-        '<div style="padding: 22px 24px 4px; border-radius: 18px;'
-        'background: rgba(255,255,255,0.025);'
-        'border: 1px solid rgba(148,163,184,0.1);'
-        'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-        + card_title("Осадки, мм"),
-        unsafe_allow_html=True,
-    )
-    # Aggregate to daily totals so we get ~7 fat bars (instead of 168
-    # hair-thin ones) like the design mockup.
-    df_p = (df.set_index("ts")["precipitation_mm"]
-              .fillna(0)
-              .resample("1D").sum()
-              .reset_index())
-    fig_p = px.bar(
-        df_p, x="ts", y="precipitation_mm",
-        labels={"ts": "", "precipitation_mm": "мм"},
-    )
-    fig_p.update_traces(
-        marker_color=RAIN,
-        marker_line_width=0,
-        marker_cornerradius=6,
-        opacity=0.92,
-    )
-    fig_p.update_layout(
-        height=300, margin=dict(t=10, b=40, l=50, r=20),
-        bargap=0.28,  # 72% of slot is the bar
-        xaxis_title=None, yaxis_title=None,
-    )
-    fig_p.update_xaxes(tickformat="%d %b")
-    fig_p.update_yaxes(ticksuffix=" мм")
-    st.plotly_chart(fig_p, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(card_title("Осадки, мм"), unsafe_allow_html=True)
+        df_p = (df.set_index("ts")["precipitation_mm"]
+                  .fillna(0)
+                  .resample("1D").sum()
+                  .reset_index())
+        fig_p = px.bar(
+            df_p, x="ts", y="precipitation_mm",
+            labels={"ts": "", "precipitation_mm": "мм"},
+        )
+        fig_p.update_traces(
+            marker_color=RAIN, marker_line_width=0,
+            marker_cornerradius=6, opacity=0.92,
+        )
+        fig_p.update_layout(
+            height=300, margin=dict(t=10, b=40, l=50, r=20),
+            bargap=0.28,
+            xaxis_title=None, yaxis_title=None,
+        )
+        fig_p.update_xaxes(tickformat="%d %b")
+        fig_p.update_yaxes(ticksuffix=" мм")
+        st.plotly_chart(fig_p, use_container_width=True)
 
 with col2:
-    st.markdown(
-        '<div style="padding: 22px 24px 4px; border-radius: 18px;'
-        'background: rgba(255,255,255,0.025);'
-        'border: 1px solid rgba(148,163,184,0.1);'
-        'backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);">'
-        + card_title("Тип погоды · частоты"),
-        unsafe_allow_html=True,
-    )
-    # Custom SVG donut + HTML legend — matches the mockup exactly
-    # (Plotly pie isn't worth fighting for the centred total + per-row
-    # percentages alignment).
-    counts = df["Тип погоды"].value_counts()
-    total = int(counts.sum())
-    R = 62           # donut radius
-    SW = 26          # donut stroke width = thickness
-    CIRC = 2 * 3.141592653589793 * R
-    slices = []
-    cum_frac = 0.0
-    for name, hours in counts.items():
-        frac = float(hours) / total if total else 0.0
-        dash = CIRC * frac
-        # stroke-dashoffset starts where previous slice ended (negated)
-        slices.append((name, frac, dash, -CIRC * cum_frac,
-                       WEATHER_COLORS.get(name, "#94a3b8")))
-        cum_frac += frac
+    with st.container(border=True):
+        st.markdown(card_title("Тип погоды · частоты"), unsafe_allow_html=True)
+        counts = df["Тип погоды"].value_counts()
+        total = int(counts.sum())
+        R = 62           # donut radius
+        SW = 26          # donut stroke width
+        CIRC = 2 * 3.141592653589793 * R
+        slices = []
+        cum_frac = 0.0
+        for name, hours in counts.items():
+            frac = float(hours) / total if total else 0.0
+            dash = CIRC * frac
+            slices.append((name, frac, dash, -CIRC * cum_frac,
+                           WEATHER_COLORS.get(name, "#94a3b8")))
+            cum_frac += frac
 
-    arcs_svg = "".join(
-        f'<circle cx="90" cy="90" r="{R}" fill="none" stroke="{color}" '
-        f'stroke-width="{SW}" stroke-dasharray="{dash:.2f} {CIRC - dash:.2f}" '
-        f'stroke-dashoffset="{offset:.2f}"/>'
-        for _, _, dash, offset, color in slices
-    )
-    legend_html = "".join(
-        f'<div style="display:flex; align-items:center; gap:10px; font-size:14px;">'
-        f'<span style="width:12px; height:12px; border-radius:3px; '
-        f'background:{color}; flex-shrink:0;"></span>'
-        f'<span style="color:#cbd5e1; flex:1; font-weight:500;">{name}</span>'
-        f'<span style="font-family:\'JetBrains Mono\',monospace; '
-        f'color:#e9eef6; font-weight:600;">{frac*100:.0f}%</span></div>'
-        for name, frac, *_ , color in slices
-    )
-    st.markdown(
-        f"""<div style="display:flex; align-items:center; gap:28px;
-                       padding: 6px 0 18px; flex-wrap:wrap;">
-        <svg viewBox="0 0 180 180" style="width:200px; height:200px; flex-shrink:0;">
-            <g transform="rotate(-90 90 90)">{arcs_svg}</g>
-            <text x="90" y="86" text-anchor="middle" font-size="34"
-                  font-weight="700" font-family="JetBrains Mono, monospace"
-                  fill="#e9eef6">{total}</text>
-            <text x="90" y="108" text-anchor="middle" font-size="12"
-                  fill="#7b8798">наблюдений</text>
-        </svg>
-        <div style="display:flex; flex-direction:column; gap:10px;
-                    flex:1; min-width:160px;">{legend_html}</div>
-        </div>""",
-        unsafe_allow_html=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+        arcs_svg = "".join(
+            f'<circle cx="90" cy="90" r="{R}" fill="none" stroke="{color}" '
+            f'stroke-width="{SW}" stroke-dasharray="{dash:.2f} {CIRC - dash:.2f}" '
+            f'stroke-dashoffset="{offset:.2f}"/>'
+            for _, _, dash, offset, color in slices
+        )
+        legend_html = "".join(
+            f'<div style="display:flex; align-items:center; gap:10px; font-size:14px;">'
+            f'<span style="width:12px; height:12px; border-radius:3px; '
+            f'background:{color}; flex-shrink:0;"></span>'
+            f'<span style="color:#cbd5e1; flex:1; font-weight:500;">{name}</span>'
+            f'<span style="font-family:\'JetBrains Mono\',monospace; '
+            f'color:#e9eef6; font-weight:600;">{frac*100:.0f}%</span></div>'
+            for name, frac, *_ , color in slices
+        )
+        st.markdown(
+            f"""<div style="display:flex; align-items:center; gap:28px;
+                           padding: 6px 0 4px; flex-wrap:wrap;">
+            <svg viewBox="0 0 180 180" style="width:200px; height:200px; flex-shrink:0;">
+                <g transform="rotate(-90 90 90)">{arcs_svg}</g>
+                <text x="90" y="86" text-anchor="middle" font-size="34"
+                      font-weight="700" font-family="JetBrains Mono, monospace"
+                      fill="#e9eef6">{total}</text>
+                <text x="90" y="108" text-anchor="middle" font-size="12"
+                      fill="#7b8798">наблюдений</text>
+            </svg>
+            <div style="display:flex; flex-direction:column; gap:10px;
+                        flex:1; min-width:160px;">{legend_html}</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
 sidebar_status()

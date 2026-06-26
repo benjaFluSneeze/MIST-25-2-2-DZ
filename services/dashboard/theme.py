@@ -365,6 +365,28 @@ hr {{
     margin: 0 6px 6px 0;
 }}
 
+/* === Bordered container (st.container(border=True)) → our card === */
+/* Streamlit wraps its inside with stVerticalBlockBorderWrapper. We
+   ditch the default thin border + tiny radius and apply the mockup's
+   subtle glass-card look so plotly_chart/markdown actually sit inside
+   a real panel together. */
+[data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) {{
+    background: {CARD_BG};
+    border: 1px solid {BORDER} !important;
+    border-radius: 18px !important;
+    padding: 22px 24px !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}}
+/* The wrapper above also matches outer page sections — only paint the
+   ones that have border=True (Streamlit sets data-border-state). */
+[data-testid="stVerticalBlockBorderWrapper"]:not([data-border-state="true"]) {{
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    backdrop-filter: none !important;
+}}
+
 /* === Custom utility classes used by markdown blocks === */
 .glass-card {{
     background: {CARD_BG};
