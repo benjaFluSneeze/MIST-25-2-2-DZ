@@ -90,11 +90,14 @@ html, body, [class*="css"] {{
     padding-bottom: 2rem !important;
     max-width: 1240px !important;
 }}
+/* Sidebar header holds Streamlit's collapse button — keep it visible
+   but kill its big top padding so the brand block sits near the top. */
 [data-testid="stSidebarHeader"] {{
-    display: none !important;
+    padding: 6px 14px !important;
+    min-height: 0 !important;
 }}
 [data-testid="stSidebarContent"] {{
-    padding-top: 18px !important;
+    padding-top: 6px !important;
 }}
 /* — defensive: if Streamlit ever leaks the auto-nav widget through
      (e.g. when a real pages/ directory sneaks in), keep it hidden. — */
@@ -365,26 +368,17 @@ hr {{
     margin: 0 6px 6px 0;
 }}
 
-/* === Bordered container (st.container(border=True)) → our card === */
-/* Streamlit wraps its inside with stVerticalBlockBorderWrapper. We
-   ditch the default thin border + tiny radius and apply the mockup's
-   subtle glass-card look so plotly_chart/markdown actually sit inside
-   a real panel together. */
-[data-testid="stVerticalBlockBorderWrapper"]:has(> div > [data-testid="stVerticalBlock"]) {{
+/* === Cards: opt-in only via st.container(key="wml-card") === */
+/* Streamlit wraps EVERYTHING (page root, every column, sidebar) in
+   stVerticalBlockBorderWrapper, so we can't paint by testid. Instead,
+   each card sets key="wml-card-*" and we target by .st-key-wml-card-*. */
+[class*="st-key-wml-card"] {{
     background: {CARD_BG};
-    border: 1px solid {BORDER} !important;
-    border-radius: 18px !important;
-    padding: 22px 24px !important;
+    border: 1px solid {BORDER};
+    border-radius: 18px;
+    padding: 22px 24px;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-}}
-/* The wrapper above also matches outer page sections — only paint the
-   ones that have border=True (Streamlit sets data-border-state). */
-[data-testid="stVerticalBlockBorderWrapper"]:not([data-border-state="true"]) {{
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    backdrop-filter: none !important;
 }}
 
 /* === Custom utility classes used by markdown blocks === */

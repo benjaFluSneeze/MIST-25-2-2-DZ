@@ -94,7 +94,7 @@ legend_chip = (
     f'<span style="width:18px; height:3px; border-radius:99px; background:{ACCENT};">'
     f'</span>{top_source}</span>'
 )
-with st.container(border=True):
+with st.container(key="wml-card-temp"):
     st.markdown(card_title("Температура за неделю", legend_chip),
                 unsafe_allow_html=True)
     df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
@@ -124,7 +124,7 @@ st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 
 with col1:
-    with st.container(border=True):
+    with st.container(key="wml-card-rain"):
         st.markdown(card_title("Осадки, мм"), unsafe_allow_html=True)
         df_p = (df.set_index("ts")["precipitation_mm"]
                   .fillna(0)
@@ -148,7 +148,7 @@ with col1:
         st.plotly_chart(fig_p, use_container_width=True)
 
 with col2:
-    with st.container(border=True):
+    with st.container(key="wml-card-pie"):
         st.markdown(card_title("Тип погоды · частоты"), unsafe_allow_html=True)
         counts = df["Тип погоды"].value_counts()
         total = int(counts.sum())
