@@ -101,17 +101,20 @@ st.markdown(
     + card_title("Температура за неделю", legend_chip),
     unsafe_allow_html=True,
 )
-# Use a single colour series — the mockup shows one cyan line, not a per-source split.
-# When mixing sources splits the y-values along the same timestamp into two traces,
-# the chart looks like a sawtooth; aggregate to a single line per hour first.
-df_t = df.groupby("ts", as_index=False)["temperature_c"].mean()
+# Resample to 3-hour means so the spline has ~56 points instead of ~168
+# and renders genuinely smooth (densely packed hourly noise was ruining
+# the curve even with smoothing=1.0).
+df_t = (df.set_index("ts")["temperature_c"]
+          .resample("3h").mean()
+          .interpolate()
+          .reset_index())
 fig_t = px.area(
     df_t, x="ts", y="temperature_c",
     labels={"ts": "Время (UTC)", "temperature_c": "Температура, °C"},
     color_discrete_sequence=[PRIMARY],
 )
 fig_t.update_traces(
-    line=dict(width=2.4, color=PRIMARY, shape="spline", smoothing=1.0),
+    line=dict(width=2.6, color=PRIMARY, shape="spline", smoothing=1.3),
     fillcolor="rgba(110,197,214,0.16)",
 )
 fig_t.update_layout(
@@ -137,16 +140,28 @@ with col1:
         + card_title("Осадки, мм"),
         unsafe_allow_html=True,
     )
+    # Aggregate to daily totals so we get ~7 fat bars (instead of 168
+    # hair-thin ones) like the design mockup.
+    df_p = (df.set_index("ts")["precipitation_mm"]
+              .fillna(0)
+              .resample("1D").sum()
+              .reset_index())
     fig_p = px.bar(
-        df, x="ts", y="precipitation_mm",
-        labels={"ts": "Время (UTC)", "precipitation_mm": "мм"},
+        df_p, x="ts", y="precipitation_mm",
+        labels={"ts": "", "precipitation_mm": "мм"},
     )
-    fig_p.update_traces(marker_color=RAIN, marker_line_width=0)
+    fig_p.update_traces(
+        marker_color=RAIN,
+        marker_line_width=0,
+        marker_cornerradius=6,
+        opacity=0.92,
+    )
     fig_p.update_layout(
         height=300, margin=dict(t=10, b=40, l=50, r=20),
-        bargap=0.05,
+        bargap=0.28,  # 72% of slot is the bar
         xaxis_title=None, yaxis_title=None,
     )
+    fig_p.update_xaxes(tickformat="%d %b")
     fig_p.update_yaxes(ticksuffix=" мм")
     st.plotly_chart(fig_p, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
@@ -160,20 +175,55 @@ with col2:
         + card_title("Тип погоды · частоты"),
         unsafe_allow_html=True,
     )
-    counts = df["Тип погоды"].value_counts().reset_index()
-    counts.columns = ["Тип погоды", "Часов"]
-    fig_pie = px.pie(
-        counts, names="Тип погоды", values="Часов",
-        color="Тип погоды",
-        color_discrete_map=WEATHER_COLORS,
-        hole=0.6,
+    # Custom SVG donut + HTML legend — matches the mockup exactly
+    # (Plotly pie isn't worth fighting for the centred total + per-row
+    # percentages alignment).
+    counts = df["Тип погоды"].value_counts()
+    total = int(counts.sum())
+    R = 62           # donut radius
+    SW = 26          # donut stroke width = thickness
+    CIRC = 2 * 3.141592653589793 * R
+    slices = []
+    cum_frac = 0.0
+    for name, hours in counts.items():
+        frac = float(hours) / total if total else 0.0
+        dash = CIRC * frac
+        # stroke-dashoffset starts where previous slice ended (negated)
+        slices.append((name, frac, dash, -CIRC * cum_frac,
+                       WEATHER_COLORS.get(name, "#94a3b8")))
+        cum_frac += frac
+
+    arcs_svg = "".join(
+        f'<circle cx="90" cy="90" r="{R}" fill="none" stroke="{color}" '
+        f'stroke-width="{SW}" stroke-dasharray="{dash:.2f} {CIRC - dash:.2f}" '
+        f'stroke-dashoffset="{offset:.2f}"/>'
+        for _, _, dash, offset, color in slices
     )
-    fig_pie.update_traces(textposition="outside", textinfo="percent")
-    fig_pie.update_layout(
-        height=300, margin=dict(t=10, b=20, l=0, r=0),
-        showlegend=True, legend=dict(orientation="v", y=0.5, x=1.05),
+    legend_html = "".join(
+        f'<div style="display:flex; align-items:center; gap:10px; font-size:14px;">'
+        f'<span style="width:12px; height:12px; border-radius:3px; '
+        f'background:{color}; flex-shrink:0;"></span>'
+        f'<span style="color:#cbd5e1; flex:1; font-weight:500;">{name}</span>'
+        f'<span style="font-family:\'JetBrains Mono\',monospace; '
+        f'color:#e9eef6; font-weight:600;">{frac*100:.0f}%</span></div>'
+        for name, frac, *_ , color in slices
     )
-    st.plotly_chart(fig_pie, use_container_width=True)
+    st.markdown(
+        f"""<div style="display:flex; align-items:center; gap:28px;
+                       padding: 6px 0 18px; flex-wrap:wrap;">
+        <svg viewBox="0 0 180 180" style="width:200px; height:200px; flex-shrink:0;">
+            <g transform="rotate(-90 90 90)">{arcs_svg}</g>
+            <text x="90" y="86" text-anchor="middle" font-size="34"
+                  font-weight="700" font-family="JetBrains Mono, monospace"
+                  fill="#e9eef6">{total}</text>
+            <text x="90" y="108" text-anchor="middle" font-size="12"
+                  fill="#7b8798">наблюдений</text>
+        </svg>
+        <div style="display:flex; flex-direction:column; gap:10px;
+                    flex:1; min-width:160px;">{legend_html}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
     st.markdown("</div>", unsafe_allow_html=True)
 
 sidebar_status()

@@ -94,6 +94,9 @@ html, body, [class*="css"] {{
 [data-testid="stSidebarContent"] {{
     padding-top: 18px !important;
 }}
+/* — defensive: if Streamlit ever leaks the auto-nav widget through
+     (e.g. when a real pages/ directory sneaks in), keep it hidden. — */
+[data-testid="stSidebarNav"] {{ display: none !important; }}
 
 /* — headings — */
 h1 {{
